@@ -135,11 +135,81 @@ El botón situado en el encabezado superior (y replicado en el banner de estado 
 
 ---
 
+---
+
+## 📊 Fase 3B: Historial Semanal, Resultados Finales y Estadísticas Profesionales
+
+En la Fase 3B, Matchweek se consolida como un historial futbolístico fidedigno y completo, garantizando que todos los partidos registrados (desde el lunes hasta el domingo de la semana seleccionada) se visualicen permanentemente, sin desaparecer al terminar.
+
+### 1. Resolución de Partidos Anteriores y Calendario Semanal
+* **Zona Horaria Estricta:** Toda la lógica de agrupación y cálculo de fechas opera bajo `America/Lima` (UTC-5), evitando que diferencias con la medianoche UTC desplacen encuentros al día siguiente o a la semana anterior.
+* **Píldora «SEMANA TODOS»:** Permite visualizar en una sola vista toda la agenda semanal de lunes a domingo (59 partidos registrados).
+* **Partidos Finalizados Conservados:** Encuentros como *Sevilla vs. Osasuna (2-0)* y *Paris Saint-Germain vs. Olympique Lyon (2-0)* permanecen visibles con su marcador oficial, goleadores y ficha completa.
+* **Navegación Histórica:** Botones `‹` y `›` para navegar entre semanas, botón `Hoy` para regresar a la fecha actual y selector directo para cada día de la semana.
+
+---
+
+### 2. Las 13 Pestañas Oficiales Sincronizadas
+La plataforma lee e integra relacionalmente las 13 hojas del libro oficial de Google Sheets mediante `&headers=1`:
+1. **Competiciones:** Metadatos de los 11 torneos oficiales.
+2. **Equipos:** 107 clubes con escudo, nombre oficial, nombre corto y país.
+3. **Partidos:** 59 encuentros con fecha/hora UTC, fecha/hora Perú, estadio, marcador y estado.
+4. **Ultimos 5 partidos:** Forma reciente vinculada por `partido_id_objetivo` y `equipo_id`.
+5. **Enfrentamientos H2H:** Historial directo vinculado por `partido_id_objetivo`.
+6. **Estadisticas:** Métricas por `partido_id` y `equipo_id`.
+7. **Control de actualizaciones:** Registro de ejecuciones del pipeline.
+8. **Goles:** Goleadores, minutos, penaltis y asistencias vinculados por `partido_id`.
+9. **Eventos del partido:** Cronología de goles, tarjetas amarillas/rojas y sustituciones.
+10. **Alineaciones:** Titulares, suplentes y posiciones vinculados por `partido_id`.
+11. **Clasificaciones:** Tabla de posiciones vinculada por `competicion_id` y `temporada`.
+12. **Cobertura diaria:** Registro de días verificados por `fecha_peru` y `competicion_id`.
+13. **Detalle final:** Marcador al descanso, árbitro principal y asistencia confirmada.
+
+---
+
+### 3. Los 4 Estados Vacíos Contextuales Obligatorios
+Para garantizar máxima transparencia y evitar afirmar erróneamente que no hubo partidos, la interfaz evalúa contra la pestaña `Cobertura diaria`:
+* **CASO A (Cobertura verificada sin partidos):**
+  *"No hubo partidos programados para este día."*
+* **CASO B (Cobertura todavía no consultada):**
+  *"Todavía no se ha verificado la programación de este día."*
+* **CASO C (Consulta con errores):**
+  *"No se pudo comprobar la programación. Intenta actualizar."*
+* **CASO D (Hay partidos en otras competiciones):**
+  *"No hay partidos de esta competición para el día seleccionado."*
+
+---
+
+### 4. Normalización de 7 Estados de Partido
+Normalización bidireccional desde Google Sheets a identificadores canónicos:
+* `PROGRAMADO` (`upcoming`)
+* `EN_VIVO` (`live`)
+* `DESCANSO` (`halftime`)
+* `FINALIZADO` (`finished`)
+* `APLAZADO` (`postponed`)
+* `SUSPENDIDO` (`suspended`)
+* `CANCELADO` (`cancelled`)
+
+---
+
+### 5. Ficha Profesional del Encuentro (Modal de 6 Pestañas)
+El modal `#matchDialog` organiza los datos en pestañas interactivas sin gráficos ficticios:
+1. **Resumen:** Marcador, goleadores oficiales con minutos y asistencias, árbitro, marcador al descanso y cronología de eventos.
+2. **Estadísticas:** Métricas numéricas reales desde la pestaña `Estadisticas` (o estado vacío si no hay datos).
+3. **Alineaciones:** Titulares y suplentes divididos por equipo local y visitante.
+4. **Forma reciente:** Últimos 5 partidos oficiales con resultados (V, E, D) y marcadores.
+5. **Historial H2H:** Enfrentamientos directos previos entre ambos clubes.
+6. **Clasificación:** Tabla de posiciones oficial de la competición con resaltado de ambos equipos.
+
+---
+
 ## 📁 Archivos del Proyecto
 
-- `index.html`: Estructura semántica, accesibilidad, botón `#syncButton`, banner táctico `#syncBanner` y modal de análisis.
-- `styles.css`: Sistema de diseño, tokens tipográficos, estados de sincronización, animaciones y diseño responsive.
-- `app.js`: Controlador UI, `GoogleSheetsSyncService`, `DataTransformer` y gestión de calendario.
-- `google-apps-script/Code.gs`: Endpoint de lectura para Google Apps Script.
-- `google-apps-script/README.md`: Instrucciones paso a paso para el despliegue del Web App en Google Apps Script.
+- `index.html`: Estructura semántica, accesibilidad, botón `#syncButton`, banner táctico `#syncBanner` y modal `#matchDialog`.
+- `styles.css`: Sistema de diseño, tokens tipográficos, estados de sincronización, animaciones, números tabulares y diseño responsive.
+- `app.js`: Controlador UI v3.2.0, `CalendarService` (America/Lima), `DataTransformer` (13 hojas), `GoogleSheetsSyncService` y gestión modal.
+- `google-apps-script/Code.gs`: Endpoint optimizado con soporte para las 13 pestañas y parámetro `?sheet=`.
+- `google-apps-script/README.md`: Documentación técnica de despliegue para Google Apps Script.
+- `scratch/test_phase3b_complete.js`: Suite automatizada de 51 pruebas de integración y validación.
+
 
