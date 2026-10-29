@@ -2349,12 +2349,12 @@ const UI = {
         </div>
 
         <nav class="dialog-tabs" role="tablist">
-          <button class="dialog-tab ${State.activeModalTab === 'resumen' ? 'active' : ''}" data-modal-tab="resumen">Resumen</button>
-          <button class="dialog-tab ${State.activeModalTab === 'estadisticas' ? 'active' : ''}" data-modal-tab="estadisticas">Estadísticas</button>
-          <button class="dialog-tab ${State.activeModalTab === 'alineaciones' ? 'active' : ''}" data-modal-tab="alineaciones">Alineaciones</button>
-          <button class="dialog-tab ${State.activeModalTab === 'forma' ? 'active' : ''}" data-modal-tab="forma">Forma Reciente</button>
-          <button class="dialog-tab ${State.activeModalTab === 'h2h' ? 'active' : ''}" data-modal-tab="h2h">Historial H2H</button>
-          <button class="dialog-tab ${State.activeModalTab === 'clasificacion' ? 'active' : ''}" data-modal-tab="clasificacion">Clasificación</button>
+          <button class="dialog-tab ${State.activeModalTab === 'resumen' ? 'active' : ''}" data-modal-tab="resumen" data-tab="resumen">Resumen</button>
+          <button class="dialog-tab ${State.activeModalTab === 'estadisticas' ? 'active' : ''}" data-modal-tab="estadisticas" data-tab="estadisticas">Estadísticas</button>
+          <button class="dialog-tab ${State.activeModalTab === 'alineaciones' ? 'active' : ''}" data-modal-tab="alineaciones" data-tab="alineaciones">Alineaciones</button>
+          <button class="dialog-tab ${State.activeModalTab === 'forma' ? 'active' : ''}" data-modal-tab="forma" data-tab="forma">Forma Reciente</button>
+          <button class="dialog-tab ${State.activeModalTab === 'h2h' ? 'active' : ''}" data-modal-tab="h2h" data-tab="h2h">Historial H2H</button>
+          <button class="dialog-tab ${State.activeModalTab === 'clasificacion' ? 'active' : ''}" data-modal-tab="clasificacion" data-tab="clasificacion">Clasificación</button>
         </nav>
       </div>
 
@@ -2367,9 +2367,9 @@ const UI = {
       this.$('matchDialog')?.close();
     });
 
-    content.querySelectorAll('[data-modal-tab]').forEach(tabBtn => {
+    content.querySelectorAll('[data-modal-tab], [data-tab]').forEach(tabBtn => {
       tabBtn.addEventListener('click', () => {
-        State.activeModalTab = tabBtn.dataset.modalTab;
+        State.activeModalTab = tabBtn.dataset.modalTab || tabBtn.dataset.tab;
         this.renderModalContent(match);
       });
     });
