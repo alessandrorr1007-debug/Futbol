@@ -92,6 +92,10 @@
             <button class="search-clear-btn" id="searchClearBtn" aria-label="Borrar búsqueda" style="display: none">✕</button>
             <kbd title="Presiona '/' para buscar">/</kbd>
           </div>
+          <button class="sync-button" id="syncButton" aria-label="Actualizar partidos desde Google Sheets" title="Consultar registros de Google Sheets">
+            <span class="sync-icon" aria-hidden="true">↻</span>
+            <span class="sync-label">Actualizar partidos</span>
+          </button>
           <button class="icon-btn theme-btn" id="themeButton" aria-label="Cambiar tema de color" title="Alternar tema claro/oscuro">☼</button>
           <span class="avatar" title="Matchweek Football Intelligence">MW</span>
         </div>
@@ -200,6 +204,37 @@
         <section id="gamesSection" class="games-section" aria-label="Agenda y partidos">
           <!-- Montura para banner dedicado de competición cuando una está seleccionada -->
           <div id="competitionHeaderMount"></div>
+
+          <!-- PANEL DE CONTROL Y ESTADO DE SINCRONIZACIÓN GOOGLE SHEETS -->
+          <aside class="sync-banner" id="syncBanner" aria-label="Estado de sincronización de Google Sheets">
+            <div class="sync-banner-main">
+              <div class="sync-status-indicator">
+                <span class="sync-status-dot initial" id="syncStatusDot" aria-hidden="true"></span>
+              </div>
+              <div class="sync-banner-info">
+                <div class="sync-banner-header">
+                  <span class="sync-banner-tag"><span class="pulse-light"></span> GOOGLE SHEETS FEED</span>
+                  <strong class="sync-banner-title" id="syncStatusHeadline">Listo para consultar Google Sheets</strong>
+                </div>
+                <p class="sync-banner-desc" id="syncStatusSub">Presiona «Actualizar partidos» para consultar las 7 pestañas oficiales del archivo Matchweek_Datos.</p>
+              </div>
+            </div>
+
+            <div class="sync-banner-meta">
+              <div class="sync-meta-item">
+                <span class="sync-meta-label">Última consulta:</span>
+                <strong class="sync-meta-value tabular-nums" id="syncLastQueryTime">Sin consultar aún</strong>
+              </div>
+              <div class="sync-meta-item">
+                <span class="sync-meta-label">Estado en hoja:</span>
+                <strong class="sync-meta-value" id="syncContentStatus">7 pestañas vinculadas</strong>
+              </div>
+              <button class="sync-banner-action" id="syncBannerButton" aria-label="Consultar Google Sheets ahora">
+                <span class="sync-icon" aria-hidden="true">↻</span>
+                <span class="sync-btn-text">Actualizar partidos</span>
+              </button>
+            </div>
+          </aside>
 
           <div class="section-heading games-heading">
             <div>

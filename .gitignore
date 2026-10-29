@@ -1,0 +1,5 @@
+# Dependencias y scripts temporales de desarrollo
+scratch/
+node_modules/
+.DS_Store
+Thumbs.db

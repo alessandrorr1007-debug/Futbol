@@ -99,8 +99,47 @@ El código en `app.js` cuenta con servicios modulares preparados para:
 
 ---
 
+## 📊 Fase 3A: Integración con Google Sheets (Matchweek_Datos)
+
+Matchweek cuenta con una integración profesional, reactiva y segura con el archivo oficial de Google Sheets:
+* **Archivo oficial:** [Matchweek_Datos](https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit)
+* **Spreadsheet ID:** `1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw`
+
+### Las 7 Pestañas Sincronizadas
+1. **Competiciones:** `competicion_id`, `nombre`, `region`, `pais_confederacion`, `temporada`, `activo`.
+2. **Equipos:** `equipo_id`, `nombre_oficial`, `nombre_corto`, `pais`, `escudo_url`, `fuente_url`, `verificado_en`.
+3. **Partidos:** `partido_id`, `competicion_id`, `temporada`, `fecha_hora_utc`, `fecha_hora_peru`, `local_id`, `visitante_id`, `estadio`, `estado`, `goles_local`, `goles_visitante`, `fuente_url`, `verificado_en`.
+4. **Ultimos 5 partidos:** `partido_id_objetivo`, `equipo_id`, `resultado`, `rival_id`, `goles_a_favor`, `goles_en_contra`, `fecha`.
+5. **Enfrentamientos H2H:** `partido_id_objetivo`, `partido_historico_id`, `local_id`, `visitante_id`, `goles_local`, `goles_visitante`, `fecha`.
+6. **Estadisticas:** `partido_id`, `equipo_id`, `metrica`, `valor`, `unidad`, `periodo`, `fuente_url`, `verificado_en`.
+7. **Control de actualizaciones:** `estado`, `inicio_utc`, `fin_utc`, `duracion_segundos`, `filas_insertadas`.
+
+---
+
+### 🔄 Botón «Actualizar partidos» y sus 5 Estados Obligatorios
+El botón situado en el encabezado superior (y replicado en el banner de estado táctico) gestiona el ciclo de vida de la consulta:
+1. **Estado inicial:** Disponible para iniciar la consulta («Actualizar partidos»).
+2. **Estado de carga:** Muestra *"Consultando datos deportivos..."*, bloquea solicitudes duplicadas temporalmente e inicia la animación de rotación suave.
+3. **Estado exitoso:** Muestra *"Datos actualizados correctamente."*, indicando la fecha y hora de la consulta en **horario de Perú (`America/Lima`)**.
+4. **Estado sin registros:** Muestra *"No hay partidos registrados para esta semana."* cuando la hoja no incluye encuentros para la semana actual, respetando la política de cero invención de datos.
+5. **Estado de error:** Muestra *"No fue posible consultar los datos. Inténtalo nuevamente."* permitiendo reintentar sin romper la interfaz.
+
+---
+
+### 🔒 Arquitectura de Seguridad y Rendimiento
+* **Cero claves privadas en frontend:** No se exponen tokens OAuth ni claves API sensibles en el código del navegador.
+* **Transporte Nativo sin Restricciones CORS:** Implementación de transporte directo mediante Google Visualization API (JSONP) que opera de forma 100% nativa en GitHub Pages sin requerir proxies de terceros.
+* **Servicio Google Apps Script (Opcional):** Código preparado en `google-apps-script/Code.gs` para actuar como backend de solo lectura con caché y cuotas seguras.
+* **Validación y Sanitización:** `DataTransformer` sanitiza HTML y URLs para prevenir ataques XSS, descarta identificadores duplicados y diferencia numéricamente el marcador `0` de la ausencia de datos (`null`).
+* **Caché Local Offline:** Si una consulta falla debido a pérdida de conectividad, se preservan los últimos datos válidos en `localStorage`.
+
+---
+
 ## 📁 Archivos del Proyecto
 
-- `index.html`: Estructura semántica, accesibilidad y contenedores de diseño.
-- `styles.css`: Sistema de diseño completo, variables, responsive y temas.
-- `app.js`: Lógica reactiva, gestión de estado, cálculo de fechas y renderizado.
+- `index.html`: Estructura semántica, accesibilidad, botón `#syncButton`, banner táctico `#syncBanner` y modal de análisis.
+- `styles.css`: Sistema de diseño, tokens tipográficos, estados de sincronización, animaciones y diseño responsive.
+- `app.js`: Controlador UI, `GoogleSheetsSyncService`, `DataTransformer` y gestión de calendario.
+- `google-apps-script/Code.gs`: Endpoint de lectura para Google Apps Script.
+- `google-apps-script/README.md`: Instrucciones paso a paso para el despliegue del Web App en Google Apps Script.
+

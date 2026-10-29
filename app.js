@@ -2,9 +2,11 @@
  * ============================================================================
  * MATCHWEEK — PREMIUM FOOTBALL INTELLIGENCE
  * ============================================================================
- * Arquitectura frontend moderna, modular y accesible.
- * Versión: 2.1.0 — Rediseño Premium
- * Concepto: Sports Media + Data Intelligence + Modern SaaS Dashboard
+ * Arquitectura frontend moderna, modular, reactiva y accesible.
+ * Versión: 3.0.0 — Fase 3A: Integración con Google Sheets
+ * 
+ * Fuente de datos: Google Sheets (Matchweek_Datos)
+ * ID del archivo: 1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw
  * ============================================================================
  */
 
@@ -18,70 +20,81 @@
 const MatchweekConfig = {
   name: 'Matchweek',
   tagline: 'Football Intelligence',
-  version: '2.1.0',
+  version: '3.0.0',
   season: '2026/27',
   timezone: 'America/Lima', // UTC-5
   locale: 'es-PE',
 
-  // Actualización programada semanal (Lunes a las 04:00 UTC)
+  // Configuración de Google Sheets
+  googleSheets: {
+    spreadsheetId: '1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw',
+    sheetsUrl: 'https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit',
+    sheetNames: [
+      'Competiciones',
+      'Equipos',
+      'Partidos',
+      'Ultimos 5 partidos',
+      'Enfrentamientos H2H',
+      'Estadisticas',
+      'Control de actualizaciones'
+    ],
+    // URL opcional de Google Apps Script Web App (si se despliega)
+    appsScriptUrl: ''
+  },
+
+  // Actualización programada semanal de referencia
   schedule: {
     updateDayIso: 1, // Lunes
     updateHourUtc: 4,
     label: 'Lunes a las 04:00 UTC'
-  },
-
-  // Endpoints preparados para la fase de conexión con API oficial
-  endpoints: {
-    fixtures: './api/v1/fixtures.json',
-    standings: './api/v1/standings.json',
-    h2h: './api/v1/h2h.json',
-    teamForm: './api/v1/teams/:id/form.json',
-    matchStats: './api/v1/matches/:id/stats.json',
-    aiAnalysis: './api/v1/ai/match-preview.json'
   }
 };
 
 /**
  * ----------------------------------------------------------------------------
- * 2. CATÁLOGO OFICIAL DE COMPETICIONES (11)
+ * 2. MAPEO BIDIRECCIONAL DE IDENTIFICADORES DE COMPETICIÓN
  * ----------------------------------------------------------------------------
- * Agrupadas en la estructura requerida:
- * - GRANDES LIGAS (5)
- * - COMPETICIONES EUROPEAS (3)
- * - SUDAMÉRICA (2)
- * - PERÚ (1)
+ * Conecta los IDs utilizados en la hoja de cálculo (ej: PL, PD, SA, BL1, FL1, etc.)
+ * con los slugs internos de Matchweek.
  */
+const COMPETITION_ID_MAP = {
+  'PL': 'premier-league',
+  'PD': 'laliga',
+  'SA': 'serie-a',
+  'BL1': 'bundesliga',
+  'FL1': 'ligue-1',
+  'CL': 'champions-league',
+  'EL': 'europa-league',
+  'ECL': 'conference-league',
+  'LIB': 'copa-libertadores',
+  'SUD': 'copa-sudamericana',
+  'PER1': 'liga-1',
+  // Inversos para soporte bidireccional
+  'premier-league': 'premier-league',
+  'laliga': 'laliga',
+  'serie-a': 'serie-a',
+  'bundesliga': 'bundesliga',
+  'ligue-1': 'ligue-1',
+  'champions-league': 'champions-league',
+  'europa-league': 'europa-league',
+  'conference-league': 'conference-league',
+  'copa-libertadores': 'copa-libertadores',
+  'copa-sudamericana': 'copa-sudamericana',
+  'liga-1': 'liga-1'
+};
+
 const CATEGORIES = [
-  {
-    id: 'grandes-ligas',
-    name: 'GRANDES LIGAS',
-    subtitle: 'Las 5 ligas de élite europea',
-    shortName: 'Ligas'
-  },
-  {
-    id: 'europeas',
-    name: 'COMPETICIONES EUROPEAS',
-    subtitle: 'Torneos continentales UEFA',
-    shortName: 'UEFA'
-  },
-  {
-    id: 'sudamerica',
-    name: 'SUDAMÉRICA',
-    subtitle: 'Torneos continentales CONMEBOL',
-    shortName: 'CONMEBOL'
-  },
-  {
-    id: 'peru',
-    name: 'PERÚ',
-    subtitle: 'Fútbol profesional peruano',
-    shortName: 'Perú'
-  }
+  { id: 'grandes-ligas', name: 'GRANDES LIGAS', subtitle: 'Las 5 ligas de élite europea', shortName: 'Ligas' },
+  { id: 'europeas', name: 'COMPETICIONES EUROPEAS', subtitle: 'Torneos continentales UEFA', shortName: 'UEFA' },
+  { id: 'sudamerica', name: 'SUDAMÉRICA', subtitle: 'Torneos continentales CONMEBOL', shortName: 'CONMEBOL' },
+  { id: 'peru', name: 'PERÚ', subtitle: 'Fútbol profesional peruano', shortName: 'Perú' }
 ];
 
 const COMPETITIONS = [
   // --- GRANDES LIGAS ---
   {
     id: 'premier-league',
+    sheetId: 'PL',
     name: 'Premier League',
     country: 'Inglaterra',
     category: 'grandes-ligas',
@@ -96,6 +109,7 @@ const COMPETITIONS = [
   },
   {
     id: 'laliga',
+    sheetId: 'PD',
     name: 'LaLiga',
     country: 'España',
     category: 'grandes-ligas',
@@ -110,6 +124,7 @@ const COMPETITIONS = [
   },
   {
     id: 'serie-a',
+    sheetId: 'SA',
     name: 'Serie A',
     country: 'Italia',
     category: 'grandes-ligas',
@@ -124,6 +139,7 @@ const COMPETITIONS = [
   },
   {
     id: 'bundesliga',
+    sheetId: 'BL1',
     name: 'Bundesliga',
     country: 'Alemania',
     category: 'grandes-ligas',
@@ -138,6 +154,7 @@ const COMPETITIONS = [
   },
   {
     id: 'ligue-1',
+    sheetId: 'FL1',
     name: 'Ligue 1',
     country: 'Francia',
     category: 'grandes-ligas',
@@ -154,6 +171,7 @@ const COMPETITIONS = [
   // --- COMPETICIONES EUROPEAS ---
   {
     id: 'champions-league',
+    sheetId: 'CL',
     name: 'UEFA Champions League',
     country: 'Europa',
     category: 'europeas',
@@ -168,6 +186,7 @@ const COMPETITIONS = [
   },
   {
     id: 'europa-league',
+    sheetId: 'EL',
     name: 'UEFA Europa League',
     country: 'Europa',
     category: 'europeas',
@@ -182,6 +201,7 @@ const COMPETITIONS = [
   },
   {
     id: 'conference-league',
+    sheetId: 'ECL',
     name: 'UEFA Conference League',
     country: 'Europa',
     category: 'europeas',
@@ -198,6 +218,7 @@ const COMPETITIONS = [
   // --- SUDAMÉRICA ---
   {
     id: 'copa-libertadores',
+    sheetId: 'LIB',
     name: 'Copa Libertadores',
     country: 'Sudamérica',
     category: 'sudamerica',
@@ -212,6 +233,7 @@ const COMPETITIONS = [
   },
   {
     id: 'copa-sudamericana',
+    sheetId: 'SUD',
     name: 'Copa Sudamericana',
     country: 'Sudamérica',
     category: 'sudamerica',
@@ -228,6 +250,7 @@ const COMPETITIONS = [
   // --- PERÚ ---
   {
     id: 'liga-1',
+    sheetId: 'PER1',
     name: 'Liga 1',
     country: 'Perú',
     category: 'peru',
@@ -244,48 +267,494 @@ const COMPETITIONS = [
 
 /**
  * ----------------------------------------------------------------------------
- * 3. ALMACÉN DE DATOS REALES (ESTRICTAMENTE CERO DATOS FICTICIOS)
+ * 3. ALMACÉN DE DATOS DINÁMICOS EN MEMORIA
  * ----------------------------------------------------------------------------
+ * Se inicializa vacío y se puebla dinámicamente al sincronizar con Google Sheets.
  */
-const FIXTURES = [];
-const TEAMS = {};
-const H2H = {};
-const STANDINGS = {};
+let FIXTURES = [];
+let TEAMS = {};
+let H2H_RECORDS = [];
+let RECENT_FORM_RECORDS = [];
+let MATCH_STATS_RECORDS = [];
+let UPDATE_CONTROL_LOG = [];
 
 /**
  * ----------------------------------------------------------------------------
- * 4. SERVICIOS PREPARADOS PARA FUTURAS INTEGRACIONES
+ * 4. SERVICIO DE LECTURA SEGURO DE GOOGLE SHEETS
  * ----------------------------------------------------------------------------
+ * Implementa transporte directo sin CORS mediante Google Visualization API (JSONP)
+ * y soporte para backend opcional de Google Apps Script.
  */
-const RealScoresService = {
-  async fetchLive() { return []; },
-  async fetchByRange(startIso, endIso) { return []; }
-};
+const GoogleSheetsSyncService = {
+  isQuerying: false,
+  cacheKey: 'matchweek_sheets_cache_v2',
 
-const PerformanceStatsService = {
-  async getMatchMetrics(matchId) { return null; },
-  async getTeamSeasonMetrics(teamId) { return null; }
-};
+  /**
+   * Ejecuta la consulta de las 7 pestañas desde Google Sheets.
+   */
+  async syncAllSheets() {
+    if (this.isQuerying) {
+      console.warn('[SyncService] Ya existe una sincronización en curso.');
+      return { status: 'busy' };
+    }
 
-const TeamFormService = {
-  async getLastFiveMatches(teamId) { return null; }
-};
+    this.isQuerying = true;
+    const startTime = Date.now();
 
-const HeadToHeadService = {
-  async getLastFiveH2H(teamA, teamB) { return null; }
-};
+    try {
+      let rawData = null;
 
-const StandingsService = {
-  async getTable(leagueId) { return null; }
-};
+      // 1. Si existe URL de Google Apps Script configurada, intentarla primero
+      if (MatchweekConfig.googleSheets.appsScriptUrl) {
+        try {
+          const res = await fetch(MatchweekConfig.googleSheets.appsScriptUrl, { redirect: 'follow' });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.status === 'success' && json.data) {
+              rawData = json.data;
+            }
+          }
+        } catch (e) {
+          console.warn('[SyncService] Apps Script no disponible, recurriendo a transporte directo.', e);
+        }
+      }
 
-const AiIntelligenceService = {
-  async generateTacticalPreview(matchId) { return null; }
+      // 2. Si no se usó Apps Script, usar el transporte nativo de Google Sheets (JSONP)
+      if (!rawData) {
+        rawData = await this.fetchViaDirectSheetsApi();
+      }
+
+      // 3. Normalizar y transformar los registros de las 7 pestañas
+      const normalized = DataTransformer.transformAllSheets(rawData);
+
+      // 4. Actualizar almacén de datos en memoria
+      FIXTURES = normalized.partidos;
+      TEAMS = normalized.equipos;
+      H2H_RECORDS = normalized.h2h;
+      RECENT_FORM_RECORDS = normalized.ultimos5;
+      MATCH_STATS_RECORDS = normalized.estadisticas;
+      UPDATE_CONTROL_LOG = normalized.control;
+
+      const durationMs = Date.now() - startTime;
+      const now = new Date();
+
+      const syncResult = {
+        status: 'success',
+        queryTimePeru: CalendarService.format(now, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }),
+        timestampIso: now.toISOString(),
+        durationMs: durationMs,
+        summary: {
+          partidosCount: FIXTURES.length,
+          equiposCount: Object.keys(TEAMS).length,
+          competicionesCount: normalized.competiciones.length,
+          h2hCount: H2H_RECORDS.length,
+          statsCount: MATCH_STATS_RECORDS.length,
+          ultimos5Count: RECENT_FORM_RECORDS.length,
+          lastContentUpdate: normalized.control.length > 0 ? normalized.control[0].fin_utc || normalized.control[0].inicio_utc : null
+        }
+      };
+
+      // 5. Guardar en almacenamiento temporal para modo sin conexión
+      this.saveToCache(syncResult, rawData);
+
+      return syncResult;
+
+    } catch (err) {
+      console.error('[SyncService] Error al sincronizar con Google Sheets:', err);
+      // Intentar restaurar desde caché si existe
+      const cached = this.loadFromCache();
+      return {
+        status: 'error',
+        error: err.message,
+        cachedFallback: cached
+      };
+    } finally {
+      this.isQuerying = false;
+    }
+  },
+
+  /**
+   * Consulta las 7 pestañas en paralelo mediante JSONP / GVIZ API.
+   * Totalmente compatible con navegadores en GitHub Pages y servidores locales.
+   */
+  async fetchViaDirectSheetsApi() {
+    const sheetNames = MatchweekConfig.googleSheets.sheetNames;
+    const fetchPromises = sheetNames.map(name => this.fetchSingleSheet(name));
+    const results = await Promise.all(fetchPromises);
+
+    const sheetMap = {};
+    sheetNames.forEach((name, idx) => {
+      sheetMap[name] = results[idx];
+    });
+    return sheetMap;
+  },
+
+  /**
+   * Consulta una pestaña individual utilizando JSONP para evitar bloqueos CORS.
+   */
+  fetchSingleSheet(sheetName) {
+    return new Promise((resolve, reject) => {
+      const sheetId = MatchweekConfig.googleSheets.spreadsheetId;
+      const callbackName = 'mw_cb_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Tiempo de espera agotado al consultar la pestaña "${sheetName}"`));
+      }, 14000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        delete window[callbackName];
+        const el = document.getElementById(callbackName);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      }
+
+      window[callbackName] = function(json) {
+        cleanup();
+        try {
+          if (!json || json.status !== 'ok') {
+            return reject(new Error(`Google Sheets reportó estado no exitoso en "${sheetName}"`));
+          }
+          const records = DataTransformer.parseGvizTable(json.table);
+          resolve(records);
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      const script = document.createElement('script');
+      script.id = callbackName;
+      script.src = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:${callbackName}&sheet=${encodeURIComponent(sheetName)}`;
+      script.onerror = function() {
+        cleanup();
+        reject(new Error(`Error de red al conectar con la pestaña "${sheetName}"`));
+      };
+      document.head.appendChild(script);
+    });
+  },
+
+  saveToCache(syncResult, rawData) {
+    try {
+      const payload = {
+        result: syncResult,
+        rawData: rawData,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(this.cacheKey, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('[SyncService] No se pudo guardar caché local', e);
+    }
+  },
+
+  loadFromCache() {
+    try {
+      const str = localStorage.getItem(this.cacheKey);
+      if (!str) return null;
+      return JSON.parse(str);
+    } catch {
+      return null;
+    }
+  }
 };
 
 /**
  * ----------------------------------------------------------------------------
- * 5. SERVICIO DE CALENDARIO (LUNES A DOMINGO)
+ * 5. TRANSFORMACIÓN, NORMALIZACIÓN Y VALIDACIÓN DE DATOS
+ * ----------------------------------------------------------------------------
+ */
+const DataTransformer = {
+  /**
+   * Convierte la estructura de tabla de Google Visualization (GVIZ)
+   * en un arreglo de objetos con nombres de campos legibles.
+   */
+  parseGvizTable(table) {
+    if (!table || !table.rows || table.rows.length === 0) return [];
+
+    const rows = table.rows;
+    // La primera fila (row 0) contiene los nombres de las columnas en esta hoja
+    const headers = rows[0].c.map(cell => (cell && cell.v !== null && cell.v !== undefined ? String(cell.v).trim() : ''));
+    const records = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const cells = rows[i].c;
+      const record = {};
+      let hasValue = false;
+
+      headers.forEach((header, colIdx) => {
+        if (!header) return;
+        const cell = cells ? cells[colIdx] : null;
+        let val = (cell && cell.v !== null && cell.v !== undefined) ? cell.v : null;
+
+        if (val !== null && val !== '') {
+          hasValue = true;
+        } else {
+          val = null;
+        }
+        record[header] = val;
+      });
+
+      if (hasValue) {
+        records.push(record);
+      }
+    }
+
+    return records;
+  },
+
+  /**
+   * Sanitiza textos para prevenir inyecciones HTML y ataques XSS.
+   */
+  sanitizeText(val) {
+    if (val === null || val === undefined) return '';
+    return String(val)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
+  /**
+   * Valida que una URL externa sea segura (HTTP o HTTPS) sin esquemas maliciosos.
+   */
+  sanitizeUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    const trimmed = url.trim();
+    if (/^https?:\/\/[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=]+$/i.test(trimmed)) {
+      return trimmed;
+    }
+    return null;
+  },
+
+  /**
+   * Transforma las 7 pestañas en estructuras normalizadas para Matchweek.
+   */
+  transformAllSheets(rawData) {
+    const out = {
+      competiciones: [],
+      equipos: {},
+      partidos: [],
+      ultimos5: [],
+      h2h: [],
+      estadisticas: [],
+      control: []
+    };
+
+    // 1. Equipos
+    const rawEquipos = rawData['Equipos'] || [];
+    rawEquipos.forEach(r => {
+      const id = String(r.equipo_id || '').trim();
+      if (!id) return;
+      out.equipos[id] = {
+        id: id,
+        nombreOficial: this.sanitizeText(r.nombre_oficial || id),
+        nombreCorto: this.sanitizeText(r.nombre_corto || r.nombre_oficial || id),
+        pais: this.sanitizeText(r.pais || ''),
+        escudoUrl: this.sanitizeUrl(r.escudo_url),
+        fuenteUrl: this.sanitizeUrl(r.fuente_url),
+        verificadoEn: r.verificado_en || null
+      };
+    });
+
+    // 2. Competiciones
+    const rawComps = rawData['Competiciones'] || [];
+    out.competiciones = rawComps.map(r => ({
+      id: r.competicion_id,
+      nombre: this.sanitizeText(r.nombre),
+      region: this.sanitizeText(r.region),
+      pais: this.sanitizeText(r.pais_confederacion),
+      temporada: r.temporada,
+      activo: String(r.activo || 'SI').toUpperCase() === 'SI'
+    }));
+
+    // 3. Partidos
+    const rawPartidos = rawData['Partidos'] || [];
+    const seenPartidoIds = new Set();
+
+    rawPartidos.forEach(r => {
+      const rawId = r.partido_id;
+      if (!rawId) return;
+
+      const id = String(rawId).trim();
+      if (seenPartidoIds.has(id)) {
+        console.warn(`[DataTransformer] Partido duplicado omitido con ID: ${id}`);
+        return;
+      }
+      seenPartidoIds.add(id);
+
+      // Normalizar competición
+      const rawCompId = String(r.competicion_id || '').trim();
+      const canonicalLeagueId = COMPETITION_ID_MAP[rawCompId] || rawCompId;
+
+      // Normalizar fecha y hora (en America/Lima)
+      const dateInfo = this.parseMatchDateTime(r.fecha_hora_peru, r.fecha_hora_utc);
+
+      // Equipos local y visitante
+      const localId = String(r.local_id || '').trim();
+      const visitanteId = String(r.visitante_id || '').trim();
+      const homeTeamObj = out.equipos[localId];
+      const awayTeamObj = out.equipos[visitanteId];
+
+      // Goles (0 es válido, no confundir con null)
+      const homeGoals = (r.goles_local !== null && r.goles_local !== '' && !isNaN(Number(r.goles_local))) ? Number(r.goles_local) : null;
+      const awayGoals = (r.goles_visitante !== null && r.goles_visitante !== '' && !isNaN(Number(r.goles_visitante))) ? Number(r.goles_visitante) : null;
+
+      // Estado del partido
+      const rawStatus = String(r.estado || 'upcoming').toLowerCase();
+      let status = 'upcoming';
+      if (['finished', 'finalizado', 'ft', 'terminado'].includes(rawStatus)) {
+        status = 'finished';
+      } else if (['live', 'en_vivo', 'en juego', 'in_play', '1h', '2h', 'ht'].includes(rawStatus)) {
+        status = 'live';
+      }
+
+      out.partidos.push({
+        id: id,
+        league: canonicalLeagueId,
+        rawLeagueId: rawCompId,
+        season: r.temporada || MatchweekConfig.season,
+        date: dateInfo.dateIso, // YYYY-MM-DD en hora de Perú
+        time: dateInfo.timeFormatted, // HH:mm en hora de Perú
+        fullDateTimePeru: dateInfo.fullDateTime,
+        localId: localId,
+        visitanteId: visitanteId,
+        homeTeam: homeTeamObj ? homeTeamObj.nombreCorto : this.sanitizeText(localId),
+        awayTeam: awayTeamObj ? awayTeamObj.nombreCorto : this.sanitizeText(visitanteId),
+        homeCrest: homeTeamObj ? homeTeamObj.escudoUrl : null,
+        awayCrest: awayTeamObj ? awayTeamObj.escudoUrl : null,
+        venue: this.sanitizeText(r.estadio || 'Estadio por confirmar'),
+        status: status,
+        rawStatus: r.estado,
+        homeGoals: homeGoals,
+        awayGoals: awayGoals,
+        hasScore: homeGoals !== null && awayGoals !== null,
+        featured: !!r.destacado,
+        sourceUrl: this.sanitizeUrl(r.fuente_url),
+        verifiedAt: r.verificado_en || null
+      });
+    });
+
+    // 4. Últimos 5 Partidos (Forma reciente)
+    const rawUltimos = rawData['Ultimos 5 partidos'] || [];
+    out.ultimos5 = rawUltimos.map(r => ({
+      partidoObjetivoId: String(r.partido_id_objetivo || '').trim(),
+      equipoId: String(r.equipo_id || '').trim(),
+      anteriorPartidoId: r.anterior_partido_id,
+      fecha: r.fecha,
+      competicion: this.sanitizeText(r.competicion),
+      rivalId: this.sanitizeText(r.rival_id),
+      localVisitante: r.local_visitante,
+      golesFavor: r.goles_favor !== null ? Number(r.goles_favor) : null,
+      golesContra: r.goles_contra !== null ? Number(r.goles_contra) : null,
+      resultado: String(r.resultado || '').trim().toUpperCase(),
+      fuenteUrl: this.sanitizeUrl(r.fuente_url)
+    }));
+
+    // 5. Enfrentamientos H2H
+    const rawH2H = rawData['Enfrentamientos H2H'] || [];
+    out.h2h = rawH2H.map(r => ({
+      partidoObjetivoId: String(r.partido_id_objetivo || '').trim(),
+      partidoHistoricoId: r.partido_historico_id,
+      fecha: r.fecha,
+      competicion: this.sanitizeText(r.competicion),
+      localId: this.sanitizeText(r.local_id),
+      visitanteId: this.sanitizeText(r.visitante_id),
+      golesLocal: r.goles_local !== null ? Number(r.goles_local) : null,
+      golesVisitante: r.goles_visitante !== null ? Number(r.goles_visitante) : null,
+      fuenteUrl: this.sanitizeUrl(r.fuente_url)
+    }));
+
+    // 6. Estadísticas
+    const rawStats = rawData['Estadisticas'] || [];
+    out.estadisticas = rawStats.map(r => ({
+      partidoId: String(r.partido_id || '').trim(),
+      equipoId: String(r.equipo_id || '').trim(),
+      metrica: this.sanitizeText(r.metrica),
+      valor: r.valor,
+      unidad: this.sanitizeText(r.unidad || ''),
+      periodo: this.sanitizeText(r.periodo || '90MIN'),
+      fuenteUrl: this.sanitizeUrl(r.fuente_url)
+    }));
+
+    // 7. Control de actualizaciones
+    const rawControl = rawData['Control de actualizaciones'] || [];
+    out.control = rawControl.map(r => ({
+      ejecucionId: r.ejecucion_id,
+      inicioUtc: r.inicio_utc,
+      finUtc: r.fin_utc,
+      semanaInicioPeru: r.semana_inicio_peru,
+      semanaFinPeru: r.semana_fin_peru,
+      estado: r.estado,
+      competicionesConsultadas: r.competiciones_consultadas,
+      partidosVerificados: r.partidos_verificados,
+      observaciones: this.sanitizeText(r.observaciones || ''),
+      fuente: this.sanitizeText(r.fuente || '')
+    }));
+
+    return out;
+  },
+
+  /**
+   * Interpreta fecha y hora en formato America/Lima (UTC-5).
+   */
+  parseMatchDateTime(fechaHoraPeru, fechaHoraUtc) {
+    if (fechaHoraPeru) {
+      const str = String(fechaHoraPeru).trim();
+      // Formatos habituales: "YYYY-MM-DD HH:mm", "YYYY-MM-DDTHH:mm:ss", "YYYY-MM-DD"
+      const dateMatch = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+      const timeMatch = str.match(/(\d{2}):(\d{2})/);
+      const dateIso = dateMatch ? `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : '2026-10-31';
+      const timeFormatted = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : 'TBD';
+
+      return {
+        dateIso: dateIso,
+        timeFormatted: timeFormatted,
+        fullDateTime: str
+      };
+    }
+
+    if (fechaHoraUtc) {
+      try {
+        const utcDate = new Date(fechaHoraUtc);
+        if (!isNaN(utcDate.getTime())) {
+          // Convertir a hora de Perú (UTC-5)
+          const peruOffsetMs = -5 * 60 * 60 * 1000;
+          const peruDate = new Date(utcDate.getTime() + peruOffsetMs);
+          const y = peruDate.getUTCFullYear();
+          const m = String(peruDate.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(peruDate.getUTCDate()).padStart(2, '0');
+          const hh = String(peruDate.getUTCHours()).padStart(2, '0');
+          const mm = String(peruDate.getUTCMinutes()).padStart(2, '0');
+          return {
+            dateIso: `${y}-${m}-${d}`,
+            timeFormatted: `${hh}:${mm}`,
+            fullDateTime: `${y}-${m}-${d} ${hh}:${mm}`
+          };
+        }
+      } catch (e) {
+        console.warn('[DataTransformer] Error parseando fecha UTC:', e);
+      }
+    }
+
+    return {
+      dateIso: '2026-10-31',
+      timeFormatted: 'TBD',
+      fullDateTime: 'Pendiente'
+    };
+  }
+};
+
+/**
+ * ----------------------------------------------------------------------------
+ * 6. SERVICIO DE CALENDARIO (LUNES A DOMINGO)
  * ----------------------------------------------------------------------------
  */
 const CalendarService = {
@@ -331,7 +800,7 @@ const CalendarService = {
 
   isWeekend(date) {
     const day = date.getDay();
-    return day === 0 || day === 6; // Domingo o Sábado
+    return day === 0 || day === 6;
   },
 
   format(date, options) {
@@ -341,18 +810,18 @@ const CalendarService = {
 
 /**
  * ----------------------------------------------------------------------------
- * 6. SERVICIO DE FAVORITOS (LOCALSTORAGE)
+ * 7. SERVICIO DE FAVORITOS (LOCALSTORAGE)
  * ----------------------------------------------------------------------------
  */
 const FavoritesService = {
-  storageKey: 'matchweek-favorites-v2',
+  storageKey: 'matchweek-favorites-v3',
 
   getFavoriteIds() {
     try {
       const raw = localStorage.getItem(this.storageKey);
       if (!raw) return new Set();
       const arr = JSON.parse(raw);
-      return new Set(Array.isArray(arr) ? arr.filter(Number.isInteger) : []);
+      return new Set(Array.isArray(arr) ? arr.map(String) : []);
     } catch {
       return new Set();
     }
@@ -367,16 +836,17 @@ const FavoritesService = {
   },
 
   toggle(matchId) {
+    const id = String(matchId);
     const set = this.getFavoriteIds();
-    const exists = set.has(matchId);
-    if (exists) set.delete(matchId);
-    else set.add(matchId);
+    const exists = set.has(id);
+    if (exists) set.delete(id);
+    else set.add(id);
     this.save(set);
     return !exists;
   },
 
   has(matchId) {
-    return this.getFavoriteIds().has(matchId);
+    return this.getFavoriteIds().has(String(matchId));
   },
 
   count() {
@@ -386,7 +856,7 @@ const FavoritesService = {
 
 /**
  * ----------------------------------------------------------------------------
- * 7. ESTADO DE LA APLICACIÓN
+ * 8. ESTADO DE LA APLICACIÓN
  * ----------------------------------------------------------------------------
  */
 const State = {
@@ -397,25 +867,21 @@ const State = {
   activeFilter: 'all',       // 'all' | 'featured' | 'upcoming' | 'finished'
   searchQuery: '',
   favorites: FavoritesService.getFavoriteIds(),
-  activeStatsTab: 'overview' // 'overview' | 'form' | 'h2h' | 'metrics' | 'ai'
+  lastSyncResult: null,      // Resultado de la última consulta a Google Sheets
+  activeModalMatchId: null,  // ID del partido abierto en el modal
+  activeModalTab: 'resumen'  // 'resumen' | 'forma' | 'h2h' | 'estadisticas' | 'ai'
 };
 
 /**
  * ----------------------------------------------------------------------------
- * 8. CONTROLADOR DE INTERFAZ DE USUARIO
+ * 9. CONTROLADOR DE INTERFAZ DE USUARIO (MATCHWEEK UI)
  * ----------------------------------------------------------------------------
  */
 const UI = {
   $: id => document.getElementById(id),
 
   escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return DataTransformer.sanitizeText(str);
   },
 
   init() {
@@ -423,6 +889,24 @@ const UI = {
     this.updateCurrentDateDisplay();
     this.bindEvents();
     this.render();
+
+    // Intentar cargar datos almacenados en caché para arranque instantáneo
+    const cached = GoogleSheetsSyncService.loadFromCache();
+    if (cached && cached.rawData) {
+      try {
+        const normalized = DataTransformer.transformAllSheets(cached.rawData);
+        FIXTURES = normalized.partidos;
+        TEAMS = normalized.equipos;
+        H2H_RECORDS = normalized.h2h;
+        RECENT_FORM_RECORDS = normalized.ultimos5;
+        MATCH_STATS_RECORDS = normalized.estadisticas;
+        UPDATE_CONTROL_LOG = normalized.control;
+        State.lastSyncResult = cached.result;
+        this.render();
+      } catch (e) {
+        console.warn('[UI] No se pudo restaurar caché', e);
+      }
+    }
   },
 
   initTheme() {
@@ -457,7 +941,7 @@ const UI = {
     toast.textContent = message;
     toast.classList.add('show');
     clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    this.toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   },
 
   getFixturesForWeek() {
@@ -478,7 +962,7 @@ const UI = {
 
       if (State.searchQuery) {
         const comp = COMPETITIONS.find(c => c.id === f.league);
-        const text = `${f.home || ''} ${f.away || ''} ${comp ? comp.name : ''}`.toLowerCase();
+        const text = `${f.homeTeam || ''} ${f.awayTeam || ''} ${comp ? comp.name : ''}`.toLowerCase();
         if (!text.includes(State.searchQuery)) return false;
       }
       return true;
@@ -497,7 +981,107 @@ const UI = {
   },
 
   // --------------------------------------------------------------------------
-  // RENDERIZADO GLOBAL
+  // ACCIÓN PRINCIPAL: ACTUALIZAR PARTIDOS DESDE GOOGLE SHEETS
+  // --------------------------------------------------------------------------
+  async handleSync() {
+    if (GoogleSheetsSyncService.isQuerying) return;
+
+    this.setSyncButtonState('loading');
+
+    const result = await GoogleSheetsSyncService.syncAllSheets();
+
+    if (result.status === 'success') {
+      State.lastSyncResult = result;
+      this.render();
+
+      const weekMatches = this.getFixturesForWeek().length;
+      if (weekMatches === 0) {
+        this.setSyncButtonState('empty', result);
+        this.showToast('Google Sheets consultado: sin partidos registrados para esta semana.');
+      } else {
+        this.setSyncButtonState('success', result);
+        this.showToast(`Datos actualizados correctamente (${result.summary.partidosCount} partidos en total).`);
+      }
+    } else {
+      this.setSyncButtonState('error', result);
+      this.showToast('No fue posible consultar los datos. Inténtalo nuevamente.');
+    }
+  },
+
+  setSyncButtonState(stateType, payload = {}) {
+    const btnTop = this.$('syncButton');
+    const btnBanner = this.$('syncBannerButton');
+    const dot = this.$('syncStatusDot');
+    const headline = this.$('syncStatusHeadline');
+    const sub = this.$('syncStatusSub');
+    const lastQueryTime = this.$('syncLastQueryTime');
+    const contentStatus = this.$('syncContentStatus');
+
+    const buttons = [btnTop, btnBanner].filter(Boolean);
+
+    // 1. Estado de carga
+    if (stateType === 'loading') {
+      buttons.forEach(b => {
+        b.disabled = true;
+        b.classList.add('loading');
+        const textEl = b.querySelector('.sync-label') || b.querySelector('.sync-btn-text');
+        if (textEl) textEl.textContent = 'Consultando datos deportivos...';
+      });
+
+      if (dot) dot.className = 'sync-status-dot loading';
+      if (headline) headline.textContent = 'Consultando datos deportivos...';
+      if (sub) sub.textContent = 'Conectando con Google Sheets y leyendo las 7 pestañas...';
+      return;
+    }
+
+    // Restaurar botones habilitados
+    buttons.forEach(b => {
+      b.disabled = false;
+      b.classList.remove('loading');
+      const textEl = b.querySelector('.sync-label') || b.querySelector('.sync-btn-text');
+      if (textEl) textEl.textContent = 'Actualizar partidos';
+    });
+
+    // 2. Estado Exitoso
+    if (stateType === 'success') {
+      if (dot) dot.className = 'sync-status-dot success';
+      if (headline) headline.textContent = 'Datos actualizados correctamente.';
+      if (sub) sub.textContent = `Consulta completada en ${payload.durationMs || 150} ms. Mostrando información real verificada.`;
+      if (lastQueryTime) lastQueryTime.textContent = payload.queryTimePeru || 'Reciente (Hora Perú)';
+      if (contentStatus) {
+        contentStatus.textContent = payload.summary?.lastContentUpdate
+          ? `Al día (actualizado: ${payload.summary.lastContentUpdate})`
+          : 'Datos al día en hoja';
+      }
+      return;
+    }
+
+    // 3. Estado Sin Registros
+    if (stateType === 'empty') {
+      if (dot) dot.className = 'sync-status-dot empty';
+      if (headline) headline.textContent = 'No hay partidos registrados para esta semana.';
+      if (sub) sub.textContent = 'La hoja de Google Sheets no contiene encuentros para el rango de fechas consultado. No se inventaron partidos.';
+      if (lastQueryTime) lastQueryTime.textContent = payload.queryTimePeru || 'Reciente (Hora Perú)';
+      if (contentStatus) contentStatus.textContent = '0 encuentros en hoja';
+      return;
+    }
+
+    // 4. Estado de Error
+    if (stateType === 'error') {
+      if (dot) dot.className = 'sync-status-dot error';
+      if (headline) headline.textContent = 'No fue posible consultar los datos. Inténtalo nuevamente.';
+      if (sub) sub.textContent = payload.error ? `Motivo: ${payload.error}` : 'Verifica la conexión a internet y vuelve a intentar.';
+      return;
+    }
+
+    // 5. Estado Inicial por defecto
+    if (dot) dot.className = 'sync-status-dot initial';
+    if (headline) headline.textContent = 'Listo para consultar Google Sheets';
+    if (sub) sub.textContent = 'Presiona «Actualizar partidos» para sincronizar la agenda deportiva.';
+  },
+
+  // --------------------------------------------------------------------------
+  // RENDERIZADO GLOBAL DE LA INTERFAZ
   // --------------------------------------------------------------------------
   render() {
     this.renderHeader();
@@ -529,7 +1113,6 @@ const UI = {
   },
 
   renderSidebar() {
-    // 1. Grupo PRINCIPAL
     const isInicio = State.view === 'inicio' && State.selectedLeague === 'all';
     const isPartidos = (State.view === 'partidos' || State.view === 'competicion') && State.selectedLeague === 'all';
     const isFavoritos = State.view === 'favoritos';
@@ -548,7 +1131,6 @@ const UI = {
     const navFavCount = this.$('navFavCount');
     if (navFavCount) navFavCount.textContent = State.favorites.size;
 
-    // 2. Grupos de Competiciones
     const nav = this.$('leagueNav');
     if (!nav) return;
 
@@ -566,6 +1148,8 @@ const UI = {
           <div class="sidebar-group-list">
             ${items.map(comp => {
               const isSelected = State.selectedLeague === comp.id;
+              // Contar partidos reales para esta competición en la semana
+              const compWeekMatches = this.getFixturesForWeek().filter(f => f.league === comp.id).length;
               return `
                 <button
                   class="league-item ${isSelected ? 'selected' : ''}"
@@ -579,6 +1163,7 @@ const UI = {
                     <span class="league-item-name">${this.escapeHtml(comp.name)}</span>
                     <span class="league-item-sub">${this.escapeHtml(comp.country)}</span>
                   </div>
+                  ${compWeekMatches > 0 ? `<span class="nav-count tabular-nums">${compWeekMatches}</span>` : ''}
                 </button>
               `;
             }).join('')}
@@ -601,7 +1186,6 @@ const UI = {
     if (systemNotice) systemNotice.style.display = isHome ? 'flex' : 'none';
     if (overviewSection) overviewSection.style.display = isHome ? 'block' : 'none';
 
-    // Métricas del overview
     const weekFixtures = this.getFixturesForWeek();
 
     const metricMatches = this.$('metricMatches');
@@ -648,26 +1232,29 @@ const UI = {
             <small>${this.escapeHtml(cat.subtitle)} · ${comps.length} torneos</small>
           </div>
           <div class="hub-grid">
-            ${comps.map(comp => `
-              <div
-                class="hub-card"
-                data-select-league="${comp.id}"
-                style="--card-color: ${comp.accentColor}">
-                <div class="hub-card-emblem" style="--emblem-bg: ${comp.badgeBg}; --emblem-color: ${comp.accentColor}">
-                  ${comp.emblemSvg}
-                </div>
-                <div class="hub-card-body">
-                  <div class="hub-card-name">${this.escapeHtml(comp.name)}</div>
-                  <div class="hub-card-meta">
-                    <span class="hub-card-flag">${comp.flag}</span>
-                    <span>${this.escapeHtml(comp.country)}</span>
-                    <span class="hub-card-sep">·</span>
-                    <span>Temporada ${MatchweekConfig.season}</span>
+            ${comps.map(comp => {
+              const compMatches = FIXTURES.filter(f => f.league === comp.id).length;
+              return `
+                <div
+                  class="hub-card"
+                  data-select-league="${comp.id}"
+                  style="--card-color: ${comp.accentColor}">
+                  <div class="hub-card-emblem" style="--emblem-bg: ${comp.badgeBg}; --emblem-color: ${comp.accentColor}">
+                    ${comp.emblemSvg}
                   </div>
+                  <div class="hub-card-body">
+                    <div class="hub-card-name">${this.escapeHtml(comp.name)}</div>
+                    <div class="hub-card-meta">
+                      <span class="hub-card-flag">${comp.flag}</span>
+                      <span>${this.escapeHtml(comp.country)}</span>
+                      <span class="hub-card-sep">·</span>
+                      <span class="tabular-nums">${compMatches} ${compMatches === 1 ? 'partido' : 'partidos'}</span>
+                    </div>
+                  </div>
+                  <span class="hub-card-arrow">↗</span>
                 </div>
-                <span class="hub-card-arrow">↗</span>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
         </div>
       `;
@@ -691,6 +1278,8 @@ const UI = {
       return;
     }
 
+    const compMatchesCount = FIXTURES.filter(f => f.league === comp.id).length;
+
     mount.innerHTML = `
       <div class="competition-banner" style="--comp-accent: ${comp.accentColor}">
         <div class="comp-banner-left">
@@ -708,8 +1297,8 @@ const UI = {
             <div class="comp-banner-tags">
               <span class="comp-tag active">Temporada ${MatchweekConfig.season}</span>
               <span class="comp-tag">Fundada en ${comp.founded}</span>
-              <span class="comp-tag">0 partidos registrados</span>
-              <span class="comp-tag">Feed oficial en espera</span>
+              <span class="comp-tag tabular-nums">${compMatchesCount} ${compMatchesCount === 1 ? 'partido registrado' : 'partidos registrados'}</span>
+              <span class="comp-tag">Fuente: Google Sheets</span>
             </div>
           </div>
         </div>
@@ -721,14 +1310,11 @@ const UI = {
       </div>
     `;
 
-    const btnAll = this.$('btnBannerShowAll');
-    if (btnAll) {
-      btnAll.addEventListener('click', () => {
-        State.selectedLeague = 'all';
-        State.view = 'partidos';
-        this.render();
-      });
-    }
+    this.$('btnBannerShowAll')?.addEventListener('click', () => {
+      State.selectedLeague = 'all';
+      State.view = 'partidos';
+      this.render();
+    });
   },
 
   renderWeekControls() {
@@ -780,15 +1366,18 @@ const UI = {
       const dayName = CalendarService.format(d, { weekday: 'short' }).replace('.', '').toUpperCase();
       const dayNumber = d.getDate();
 
+      // Contar partidos para ese día
+      const dayCount = FIXTURES.filter(f => f.date === s && (State.selectedLeague === 'all' || f.league === State.selectedLeague)).length;
+
       return `
         <button
           class="date-pill ${isSelected ? 'active' : ''} ${isToday ? 'is-today' : ''} ${isWeekend ? 'is-weekend' : ''}"
           data-day="${s}"
           aria-pressed="${isSelected}"
-          title="${CalendarService.format(d, { weekday: 'long', day: 'numeric', month: 'long' })}">
+          title="${CalendarService.format(d, { weekday: 'long', day: 'numeric', month: 'long' })} (${dayCount} partidos)">
           <span class="day-name">${dayName}</span>
           <span class="day-number tabular-nums">${dayNumber}</span>
-          <span class="day-indicator"></span>
+          <span class="day-indicator ${dayCount > 0 ? 'has-matches' : ''}"></span>
         </button>
       `;
     }).join('');
@@ -821,7 +1410,7 @@ const UI = {
             </div>
             <span class="empty-badge">BÚSQUEDA</span>
             <strong class="empty-state-headline">Sin resultados para "${this.escapeHtml(State.searchQuery)}"</strong>
-            <p class="empty-state-desc">No se encontraron encuentros ni competiciones con ese criterio. Prueba buscando por Premier League, LaLiga, Serie A, Champions League, Liga 1 o Copa Libertadores.</p>
+            <p class="empty-state-desc">No se encontraron encuentros ni competiciones con ese criterio en los datos sincronizados.</p>
             <div class="empty-state-actions">
               <button class="btn-action primary" id="btnResetSearch">Limpiar búsqueda</button>
             </div>
@@ -876,16 +1465,17 @@ const UI = {
 
     const matches = this.getVisibleFixtures();
 
+    // Si existen partidos reales
     if (matches.length > 0) {
       list.innerHTML = this.renderMatchGroups(matches);
       return;
     }
 
     // ========================================================================
-    // ESTADOS VACÍOS PREMIUM (REQUISITO FUNDAMENTAL)
+    // ESTADOS VACÍOS CONTEXTUALES (SIN DATOS SIMULADOS)
     // ========================================================================
 
-    // CASO A: Usuario selecciona una competición específica (ej: Premier League)
+    // CASO A: Competición específica seleccionada
     if (State.selectedLeague !== 'all') {
       const comp = COMPETITIONS.find(c => c.id === State.selectedLeague) || {
         name: 'Competición',
@@ -907,8 +1497,8 @@ const UI = {
           <p class="empty-state-desc">Los encuentros aparecerán aquí cuando se habilite la actualización de datos.</p>
           <div class="empty-state-details">
             <span class="empty-detail-pill">Temporada ${MatchweekConfig.season}</span>
-            <span class="empty-detail-pill">0 partidos registrados</span>
-            <span class="empty-detail-pill">Feed oficial en espera</span>
+            <span class="empty-detail-pill">0 partidos registrados en hoja</span>
+            <span class="empty-detail-pill">Fuente: Google Sheets</span>
           </div>
           <div class="empty-state-actions">
             <button class="btn-action secondary" id="btnEmptyShowAll">Ver todas las competiciones</button>
@@ -933,7 +1523,7 @@ const UI = {
       return;
     }
 
-    // CASO B: Vista de Favoritos
+    // CASO B: Favoritos
     if (State.view === 'favoritos') {
       list.innerHTML = `
         <div class="empty-state favorites-empty-state">
@@ -946,7 +1536,7 @@ const UI = {
           <span class="empty-badge">FAVORITOS</span>
           <h3 class="empty-state-title">Tus favoritos</h3>
           <strong class="empty-state-headline">No tienes partidos guardados</strong>
-          <p class="empty-state-desc">Cuando se habilite la actualización de datos oficiales, podrás hacer clic en el corazón de cualquier partido para agregarlo a tu lista de seguimiento personal.</p>
+          <p class="empty-state-desc">Cuando se sincronicen encuentros desde Google Sheets, podrás presionar el corazón en cualquier tarjeta para realizar seguimiento personalizado.</p>
           <div class="empty-state-actions">
             <button class="btn-action primary" id="btnFavGoAll">Explorar competiciones</button>
           </div>
@@ -961,12 +1551,11 @@ const UI = {
       return;
     }
 
-    // CASO C: Vista general de partidos o inicio (0 partidos en la agenda)
+    // CASO C: Vista General de la Agenda (sin partidos registrados)
     list.innerHTML = `
       <div class="empty-state general-empty-state">
         <div class="empty-state-art">
           <svg viewBox="0 0 100 60" class="empty-vector" aria-hidden="true">
-            <!-- Pitch lines vector -->
             <rect x="5" y="5" width="90" height="50" rx="4" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.3"/>
             <line x1="50" y1="5" x2="50" y2="55" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
             <circle cx="50" cy="30" r="12" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.3"/>
@@ -981,19 +1570,17 @@ const UI = {
         <p class="empty-state-desc">Los encuentros de esta semana aparecerán aquí cuando se habilite la actualización de datos.</p>
         <div class="empty-state-details">
           <span class="empty-detail-pill">11 competiciones configuradas</span>
-          <span class="empty-detail-pill">Ciclo de actualización cada lunes</span>
+          <span class="empty-detail-pill">Fuente: Google Sheets (Matchweek_Datos)</span>
           <span class="empty-detail-pill">Cero partidos simulados</span>
         </div>
         <div class="empty-state-actions">
-          <button class="btn-action primary" id="btnGeneralExplore">Explorar competiciones disponibles</button>
+          <button class="btn-action primary" id="btnTriggerSyncFromEmpty">Actualizar desde Google Sheets</button>
         </div>
       </div>
     `;
 
-    this.$('btnGeneralExplore')?.addEventListener('click', () => {
-      State.view = 'inicio';
-      this.render();
-      this.$('competitionsHub')?.scrollIntoView({ behavior: 'smooth' });
+    this.$('btnTriggerSyncFromEmpty')?.addEventListener('click', () => {
+      this.handleSync();
     });
   },
 
@@ -1023,26 +1610,43 @@ const UI = {
 
   renderMatchCard(m) {
     const comp = COMPETITIONS.find(c => c.id === m.league) || { name: 'Fútbol', accentColor: '#C6FF4D' };
-    const isFav = State.favorites.has(m.id);
+    const isFav = State.favorites.has(String(m.id));
+
+    // Determinar el score o horario
+    let scoreDisplay = `<strong class="tabular-nums">${this.escapeHtml(m.time || 'TBD')}</strong><small>POR JUGAR</small>`;
+    if (m.status === 'finished') {
+      scoreDisplay = `
+        <strong class="tabular-nums match-score-live">${m.homeGoals} - ${m.awayGoals}</strong>
+        <small class="score-tag finished">FINALIZADO</small>
+      `;
+    } else if (m.status === 'live') {
+      scoreDisplay = `
+        <strong class="tabular-nums match-score-live">${m.homeGoals !== null ? m.homeGoals : 0} - ${m.awayGoals !== null ? m.awayGoals : 0}</strong>
+        <small class="score-tag live"><span class="pulse-light"></span> EN VIVO</small>
+      `;
+    }
 
     return `
       <article class="match-card" data-match-id="${m.id}">
         <div class="match-meta">
           <span class="competition" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name)}</span>
-          <small class="tabular-nums">Hora Perú (UTC−5)</small>
+          <small class="tabular-nums">${this.escapeHtml(m.venue)} · Hora Perú</small>
         </div>
         <div class="teams">
           <div class="team">
-            <span class="team-crest">${m.homeCrest || '⚽'}</span>
-            <span class="team-name">${this.escapeHtml(m.homeTeam || 'Local')}</span>
+            <span class="team-crest">
+              ${m.homeCrest ? `<img src="${this.escapeHtml(m.homeCrest)}" alt="${this.escapeHtml(m.homeTeam)}" class="crest-img" onerror="this.outerHTML='⚽'"/>` : '⚽'}
+            </span>
+            <span class="team-name">${this.escapeHtml(m.homeTeam)}</span>
           </div>
           <div class="score-box">
-            <strong class="tabular-nums">${this.escapeHtml(m.time || 'TBD')}</strong>
-            <small>${m.status === 'finished' ? 'FINALIZADO' : 'POR JUGAR'}</small>
+            ${scoreDisplay}
           </div>
           <div class="team right">
-            <span class="team-crest">${m.awayCrest || '⚽'}</span>
-            <span class="team-name">${this.escapeHtml(m.awayTeam || 'Visitante')}</span>
+            <span class="team-crest">
+              ${m.awayCrest ? `<img src="${this.escapeHtml(m.awayCrest)}" alt="${this.escapeHtml(m.awayTeam)}" class="crest-img" onerror="this.outerHTML='⚽'"/>` : '⚽'}
+            </span>
+            <span class="team-name">${this.escapeHtml(m.awayTeam)}</span>
           </div>
         </div>
         <div class="match-action">
@@ -1063,27 +1667,30 @@ const UI = {
   },
 
   // --------------------------------------------------------------------------
-  // PANEL / DIÁLOGO DE ANÁLISIS DE PARTIDO (PREPARADO PARA DATOS REALES)
+  // MODAL / FICHA TÉCNICA Y ANÁLISIS DE ENCUENTROS
   // --------------------------------------------------------------------------
   openMatchDetails(matchId) {
-    const match = FIXTURES.find(f => f.id === matchId);
+    const match = FIXTURES.find(f => String(f.id) === String(matchId));
     const dialog = this.$('matchDialog');
     const content = this.$('dialogContent');
     if (!dialog || !content) return;
+
+    State.activeModalMatchId = String(matchId);
+    State.activeModalTab = 'resumen';
 
     if (!match) {
       content.innerHTML = `
         <div class="dialog-top">
           <div class="dialog-toolbar">
-            <span class="dialog-kicker">FICHA DE ANÁLISIS</span>
+            <span class="dialog-kicker">FICHA TÉCNICA</span>
             <button class="dialog-close" id="dialogCloseBtn" aria-label="Cerrar ventana">✕</button>
           </div>
-          <h3 class="dialog-heading">Ficha técnica no disponible</h3>
-          <p class="dialog-sub">No hay un partido seleccionado o no se encontraron registros deportivos oficiales.</p>
+          <h3 class="dialog-heading">Partido no encontrado</h3>
+          <p class="dialog-sub">No se localizaron registros deportivos oficiales para el encuentro solicitado.</p>
         </div>
         <div class="dialog-body">
           <div class="dialog-empty-panel">
-            <p>La información detallada se habilitará una vez iniciada la conexión con la fuente oficial de datos.</p>
+            <p>Por favor consulta nuevamente los registros de Google Sheets.</p>
           </div>
         </div>
       `;
@@ -1092,55 +1699,206 @@ const UI = {
       return;
     }
 
-    const comp = COMPETITIONS.find(c => c.id === match.league);
+    this.renderModalContent(match);
+    dialog.showModal();
+  },
+
+  renderModalContent(match) {
+    const content = this.$('dialogContent');
+    if (!content) return;
+
+    const comp = COMPETITIONS.find(c => c.id === match.league) || { name: 'Competición', accentColor: '#C6FF4D' };
+
+    // Registros asociados
+    const matchH2H = H2H_RECORDS.filter(r => String(r.partidoObjetivoId) === String(match.id));
+    const matchRecentForm = RECENT_FORM_RECORDS.filter(r => String(r.partidoObjetivoId) === String(match.id));
+    const matchStats = MATCH_STATS_RECORDS.filter(r => String(r.partidoId) === String(match.id));
+
+    let tabBodyHtml = '';
+
+    // Pestaña 1: Resumen
+    if (State.activeModalTab === 'resumen') {
+      tabBodyHtml = `
+        <div class="dialog-panel">
+          <div class="dialog-info-grid">
+            <div class="info-cell">
+              <span class="cell-label">Competición</span>
+              <strong style="color: ${comp.accentColor}">${this.escapeHtml(comp.name)}</strong>
+            </div>
+            <div class="info-cell">
+              <span class="cell-label">Estadio</span>
+              <strong>${this.escapeHtml(match.venue)}</strong>
+            </div>
+            <div class="info-cell">
+              <span class="cell-label">Fecha y Hora (Perú)</span>
+              <strong class="tabular-nums">${this.escapeHtml(match.date)} · ${this.escapeHtml(match.time)}</strong>
+            </div>
+            <div class="info-cell">
+              <span class="cell-label">Estado Oficial</span>
+              <strong>${this.escapeHtml(match.rawStatus || match.status)}</strong>
+            </div>
+          </div>
+          ${match.hasScore ? `
+            <div class="dialog-score-banner">
+              <span>Resultado confirmado:</span>
+              <strong class="tabular-nums">${match.homeTeam} ${match.homeGoals} — ${match.awayGoals} ${match.awayTeam}</strong>
+            </div>
+          ` : ''}
+          <div class="dialog-note">
+            <strong>Fuente verificada:</strong> Registros sincronizados desde la pestaña <code>Partidos</code> de Google Sheets.
+          </div>
+        </div>
+      `;
+    }
+
+    // Pestaña 2: Forma Reciente (Últimos 5 partidos)
+    else if (State.activeModalTab === 'forma') {
+      if (matchRecentForm.length === 0) {
+        tabBodyHtml = `
+          <div class="dialog-empty-panel">
+            <span class="dialog-empty-icon">📊</span>
+            <strong>Sin antecedentes registrados</strong>
+            <p>La pestaña <code>Ultimos 5 partidos</code> de Google Sheets aún no contiene registros para este encuentro.</p>
+          </div>
+        `;
+      } else {
+        tabBodyHtml = `
+          <div class="dialog-panel">
+            <div class="form-list">
+              ${matchRecentForm.map(r => `
+                <div class="form-row">
+                  <span class="form-res ${r.resultado.toLowerCase()}">${this.escapeHtml(r.resultado)}</span>
+                  <span class="form-date tabular-nums">${this.escapeHtml(r.fecha || '')}</span>
+                  <span class="form-match">${this.escapeHtml(r.equipoId)} vs ${this.escapeHtml(r.rivalId)}</span>
+                  <strong class="form-score tabular-nums">${r.golesFavor !== null ? `${r.golesFavor}-${r.golesContra}` : 'N/D'}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Pestaña 3: Historial H2H
+    else if (State.activeModalTab === 'h2h') {
+      if (matchH2H.length === 0) {
+        tabBodyHtml = `
+          <div class="dialog-empty-panel">
+            <span class="dialog-empty-icon">⚔️</span>
+            <strong>Sin enfrentamientos directos registrados</strong>
+            <p>La pestaña <code>Enfrentamientos H2H</code> de Google Sheets no tiene filas vinculadas al partido ID <code>${this.escapeHtml(match.id)}</code>.</p>
+          </div>
+        `;
+      } else {
+        tabBodyHtml = `
+          <div class="dialog-panel">
+            <div class="h2h-table">
+              ${matchH2H.map(r => `
+                <div class="h2h-row">
+                  <span class="h2h-date tabular-nums">${this.escapeHtml(r.fecha || '')}</span>
+                  <span class="h2h-teams">${this.escapeHtml(r.localId)} vs ${this.escapeHtml(r.visitanteId)}</span>
+                  <strong class="h2h-score tabular-nums">${r.golesLocal !== null ? `${r.golesLocal}-${r.golesVisitante}` : 'N/D'}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Pestaña 4: Estadísticas & Goles
+    else if (State.activeModalTab === 'estadisticas') {
+      if (matchStats.length === 0) {
+        tabBodyHtml = `
+          <div class="dialog-empty-panel">
+            <span class="dialog-empty-icon">📈</span>
+            <strong>Sin métricas registradas</strong>
+            <p>La pestaña <code>Estadisticas</code> de Google Sheets aún no contiene métricas numéricas para este encuentro.</p>
+          </div>
+        `;
+      } else {
+        tabBodyHtml = `
+          <div class="dialog-panel">
+            <div class="stats-table">
+              ${matchStats.map(s => `
+                <div class="stat-row">
+                  <span class="stat-name">${this.escapeHtml(s.metrica)}</span>
+                  <strong class="stat-val tabular-nums">${this.escapeHtml(s.valor)} ${this.escapeHtml(s.unidad)}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Pestaña 5: Análisis IA
+    else if (State.activeModalTab === 'ai') {
+      tabBodyHtml = `
+        <div class="dialog-empty-panel">
+          <span class="dialog-empty-icon">🤖</span>
+          <strong>Módulo de Inteligencia Artificial en preparación</strong>
+          <p>Esta funcionalidad se activará en la siguiente fase de desarrollo de Matchweek. No se inventaron predicciones ni análisis deportivos simulados.</p>
+        </div>
+      `;
+    }
 
     content.innerHTML = `
       <div class="dialog-top">
         <div class="dialog-toolbar">
-          <span class="dialog-kicker">${comp ? comp.name.toUpperCase() : 'COMPETICIÓN'}</span>
-          <button class="dialog-close" id="dialogCloseBtn" aria-label="Cerrar">✕</button>
+          <span class="dialog-kicker" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name.toUpperCase())}</span>
+          <button class="dialog-close" id="dialogCloseBtn" aria-label="Cerrar ventana">✕</button>
         </div>
         <div class="dialog-teams">
           <div class="dialog-side">
-            <span class="dialog-crest">${match.homeCrest || '⚽'}</span>
+            <span class="dialog-crest">
+              ${match.homeCrest ? `<img src="${this.escapeHtml(match.homeCrest)}" alt="${this.escapeHtml(match.homeTeam)}" class="crest-img" onerror="this.outerHTML='⚽'"/>` : '⚽'}
+            </span>
             <strong>${this.escapeHtml(match.homeTeam)}</strong>
           </div>
           <div class="dialog-center">
-            <span class="dialog-vs">VS</span>
-            <span class="dialog-time tabular-nums">${match.time || 'TBD'}</span>
+            <span class="dialog-vs">${match.hasScore ? `${match.homeGoals} - ${match.awayGoals}` : 'VS'}</span>
+            <span class="dialog-time tabular-nums">${this.escapeHtml(match.time)}</span>
             <small>HORA PERÚ</small>
           </div>
           <div class="dialog-side">
-            <span class="dialog-crest">${match.awayCrest || '⚽'}</span>
+            <span class="dialog-crest">
+              ${match.awayCrest ? `<img src="${this.escapeHtml(match.awayCrest)}" alt="${this.escapeHtml(match.awayTeam)}" class="crest-img" onerror="this.outerHTML='⚽'"/>` : '⚽'}
+            </span>
             <strong>${this.escapeHtml(match.awayTeam)}</strong>
           </div>
         </div>
 
         <nav class="dialog-tabs" role="tablist">
-          <button class="dialog-tab active" data-tab="overview">Resumen</button>
-          <button class="dialog-tab" data-tab="form">Forma Reciente</button>
-          <button class="dialog-tab" data-tab="h2h">Historial H2H</button>
-          <button class="dialog-tab" data-tab="metrics">Estadísticas</button>
-          <button class="dialog-tab" data-tab="ai">Análisis IA</button>
+          <button class="dialog-tab ${State.activeModalTab === 'resumen' ? 'active' : ''}" data-modal-tab="resumen">Resumen</button>
+          <button class="dialog-tab ${State.activeModalTab === 'forma' ? 'active' : ''}" data-modal-tab="forma">Forma Reciente</button>
+          <button class="dialog-tab ${State.activeModalTab === 'h2h' ? 'active' : ''}" data-modal-tab="h2h">Historial H2H</button>
+          <button class="dialog-tab ${State.activeModalTab === 'estadisticas' ? 'active' : ''}" data-modal-tab="estadisticas">Estadísticas</button>
+          <button class="dialog-tab ${State.activeModalTab === 'ai' ? 'active' : ''}" data-modal-tab="ai">Análisis IA</button>
         </nav>
       </div>
 
       <div class="dialog-body">
-        <div class="dialog-note">
-          <strong>Sincronización oficial:</strong> Los datos históricos, comparativa de goles y análisis táctico se calcularán automáticamente tras habilitar el feed en tiempo real. Cero datos simulados.
-        </div>
+        ${tabBodyHtml}
       </div>
     `;
 
-    dialog.showModal();
-    this.$('dialogCloseBtn')?.addEventListener('click', () => dialog.close());
+    this.$('dialogCloseBtn')?.addEventListener('click', () => {
+      this.$('matchDialog')?.close();
+    });
+
+    content.querySelectorAll('[data-modal-tab]').forEach(tabBtn => {
+      tabBtn.addEventListener('click', () => {
+        State.activeModalTab = tabBtn.dataset.modalTab;
+        this.renderModalContent(match);
+      });
+    });
   },
 
   // --------------------------------------------------------------------------
   // ENLACE DE EVENTOS
   // --------------------------------------------------------------------------
   bindEvents() {
-    // 1. Delegación de eventos en el documento
     document.addEventListener('click', e => {
       // Clic en liga desde el sidebar
       const leagueItem = e.target.closest('[data-league]');
@@ -1204,7 +1962,7 @@ const UI = {
       // Clic en detalle de partido
       const detailBtn = e.target.closest('[data-detail]');
       if (detailBtn) {
-        const matchId = Number(detailBtn.dataset.detail);
+        const matchId = detailBtn.dataset.detail;
         this.openMatchDetails(matchId);
         return;
       }
@@ -1212,7 +1970,7 @@ const UI = {
       // Clic en botón de favorito
       const favBtn = e.target.closest('[data-fav]');
       if (favBtn) {
-        const matchId = Number(favBtn.dataset.fav);
+        const matchId = favBtn.dataset.fav;
         const isAdded = FavoritesService.toggle(matchId);
         State.favorites = FavoritesService.getFavoriteIds();
         this.render();
@@ -1221,7 +1979,11 @@ const UI = {
       }
     });
 
-    // 2. Navegación semanal
+    // Botones de Sincronización «Actualizar partidos»
+    this.$('syncButton')?.addEventListener('click', () => this.handleSync());
+    this.$('syncBannerButton')?.addEventListener('click', () => this.handleSync());
+
+    // Navegación semanal
     this.$('prevWeek')?.addEventListener('click', () => {
       State.currentWeekStart = CalendarService.addDays(State.currentWeekStart, -7);
       State.selectedDay = 'all';
@@ -1241,7 +2003,7 @@ const UI = {
       this.showToast('Semana actual');
     });
 
-    // 3. Botones del Hero
+    // Botones del Hero
     this.$('exploreButton')?.addEventListener('click', () => {
       this.$('competitionsHub')?.scrollIntoView({ behavior: 'smooth' });
     });
@@ -1250,7 +2012,7 @@ const UI = {
       this.$('gamesSection')?.scrollIntoView({ behavior: 'smooth' });
     });
 
-    // 4. Búsqueda en tiempo real
+    // Búsqueda en tiempo real
     const searchInput = this.$('searchInput');
     const searchClear = this.$('searchClearBtn');
 
@@ -1273,7 +2035,7 @@ const UI = {
       });
     }
 
-    // Atajo de teclado '/' para enfocar buscador
+    // Atajos de teclado
     document.addEventListener('keydown', e => {
       if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
         const dialog = this.$('matchDialog');
@@ -1292,12 +2054,12 @@ const UI = {
       }
     });
 
-    // 5. Cambio de tema Claro / Oscuro
+    // Tema Claro / Oscuro
     this.$('themeButton')?.addEventListener('click', () => {
       this.toggleTheme();
     });
 
-    // 6. Menú móvil
+    // Menú móvil
     this.$('menuButton')?.addEventListener('click', () => {
       this.$('sidebar')?.classList.add('open');
       this.$('mobileBackdrop')?.classList.add('visible');
@@ -1311,7 +2073,7 @@ const UI = {
       this.closeMobileMenu();
     });
 
-    // 7. Clic fuera del diálogo modal
+    // Cerrar diálogo al hacer clic fuera
     const matchDialog = this.$('matchDialog');
     if (matchDialog) {
       matchDialog.addEventListener('click', e => {
@@ -1319,7 +2081,7 @@ const UI = {
       });
     }
 
-    // 8. Logotipo para volver al Inicio
+    // Logo para volver al inicio
     this.$('brandLink')?.addEventListener('click', e => {
       e.preventDefault();
       State.view = 'inicio';
@@ -1337,7 +2099,7 @@ const UI = {
   }
 };
 
-// Inicialización
+// Inicialización de la aplicación
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => UI.init());
 } else {

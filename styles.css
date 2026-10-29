@@ -533,6 +533,65 @@ a {
   border-radius: 4px;
 }
 
+/* ==========================================================================
+   BOTÓN DE ACTUALIZACIÓN «ACTUALIZAR PARTIDOS» (TOPBAR)
+   ========================================================================== */
+.sync-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sync-button:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.sync-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.sync-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sync-icon {
+  display: inline-block;
+  font-size: 15px;
+  line-height: 1;
+  transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.sync-button:hover:not(:disabled) .sync-icon {
+  transform: rotate(90deg);
+}
+
+.sync-button.loading .sync-icon,
+.sync-banner-action.loading .sync-icon {
+  animation: spinSync 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes spinSync {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .icon-btn {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1884,6 +1943,306 @@ main {
 }
 
 /* ==========================================================================
+   BANNER DE CONTROL Y SINCRONIZACIÓN GOOGLE SHEETS
+   ========================================================================== */
+.sync-banner {
+  background: radial-gradient(circle at 10% 50%, rgba(198, 255, 77, 0.04) 0%, var(--surface) 60%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.sync-banner:hover {
+  border-color: rgba(198, 255, 77, 0.25);
+}
+
+.sync-banner-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.sync-status-indicator {
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+
+.sync-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  display: block;
+  position: relative;
+  transition: background-color var(--duration-normal) var(--ease-out);
+}
+
+.sync-status-dot.initial {
+  background-color: #38BDF8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.sync-status-dot.loading {
+  background-color: #F59E0B;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+  animation: pulseDot 1s ease-in-out infinite;
+}
+
+.sync-status-dot.success {
+  background-color: #10B981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+}
+
+.sync-status-dot.empty {
+  background-color: #6366F1;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+}
+
+.sync-status-dot.error {
+  background-color: #EF4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+  animation: pulseDot 0.8s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.6; }
+}
+
+.sync-banner-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sync-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sync-banner-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: var(--accent-glow);
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sync-banner-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.sync-banner-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.sync-banner-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sync-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.sync-meta-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sync-meta-value {
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+
+.sync-banner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+}
+
+.sync-banner-action:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.sync-banner-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   PANELES Y DETALLES EN MODAL (FICHA TÉCNICA Y ESTADÍSTICAS)
+   ========================================================================== */
+.dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialog-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.info-cell {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cell-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.info-cell strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.dialog-score-banner {
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-main);
+  font-size: 12.5px;
+}
+
+.dialog-score-banner strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.form-list, .h2h-table, .stats-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-row, .h2h-row, .stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12.5px;
+}
+
+.form-res {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 10.5px;
+  text-align: center;
+  min-width: 24px;
+}
+
+.form-res.v, .form-res.w {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10B981;
+}
+
+.form-res.e, .form-res.d_empate {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+}
+
+.form-res.d, .form-res.l {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.match-score-live {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+.score-tag {
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+.score-tag.finished {
+  background: var(--surface-hover);
+  color: var(--text-dim);
+}
+
+.score-tag.live {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+/* ==========================================================================
    TOAST DE NOTIFICACIONES
    ========================================================================== */
 .toast {
@@ -2077,6 +2436,30 @@ body.light .match-dialog {
 
   .avatar {
     display: none;
+  }
+
+  .sync-button .sync-label {
+    display: none;
+  }
+
+  .sync-button {
+    padding: 8px 10px;
+  }
+
+  .sync-banner {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .sync-banner-meta {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .sync-banner-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .breadcrumb {
