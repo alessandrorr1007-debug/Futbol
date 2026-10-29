@@ -216,7 +216,7 @@
                   <span class="sync-banner-tag"><span class="pulse-light"></span> GOOGLE SHEETS FEED</span>
                   <strong class="sync-banner-title" id="syncStatusHeadline">Listo para consultar Google Sheets</strong>
                 </div>
-                <p class="sync-banner-desc" id="syncStatusSub">Presiona «Actualizar partidos» para consultar las 13 pestañas oficiales del archivo Matchweek_Datos.</p>
+                <p class="sync-banner-desc" id="syncStatusSub">Presiona «Actualizar partidos» para consultar las 14 pestañas oficiales del archivo Matchweek_Datos.</p>
               </div>
             </div>
 
@@ -227,7 +227,7 @@
               </div>
               <div class="sync-meta-item">
                 <span class="sync-meta-label">Estado en hoja:</span>
-                <strong class="sync-meta-value" id="syncContentStatus">13 pestañas vinculadas</strong>
+                <strong class="sync-meta-value" id="syncContentStatus">14 pestañas vinculadas</strong>
               </div>
               <button class="sync-banner-action" id="syncBannerButton" aria-label="Consultar Google Sheets ahora">
                 <span class="sync-icon" aria-hidden="true">↻</span>
@@ -235,6 +235,24 @@
               </button>
             </div>
           </aside>
+
+          <!-- SELECTOR DE PERÍODO: ESTA SEMANA | PRÓXIMA SEMANA | VER 14 DÍAS -->
+          <div class="period-nav-container">
+            <div class="period-selector-bar" role="tablist" aria-label="Período de agenda deportiva">
+              <button class="period-btn active" id="btnPeriodCurrent" data-period="current" role="tab" aria-selected="true">
+                <span class="period-icon">⚡</span>
+                <span class="period-title">Esta semana</span>
+              </button>
+              <button class="period-btn" id="btnPeriodNext" data-period="next" role="tab" aria-selected="false">
+                <span class="period-icon">📅</span>
+                <span class="period-title">Próxima semana</span>
+              </button>
+              <button class="period-btn" id="btnPeriod14Days" data-period="14days" role="tab" aria-selected="false">
+                <span class="period-icon">♾</span>
+                <span class="period-title">Ver 14 días</span>
+              </button>
+            </div>
+          </div>
 
           <div class="section-heading games-heading">
             <div>

@@ -20,12 +20,12 @@
 const MatchweekConfig = {
   name: 'Matchweek',
   tagline: 'Football Intelligence',
-  version: '3.2.0',
+  version: '4.0.0', // Matchweek 2.0: Dos semanas de partidos, cancha táctica y 14 pestañas
   season: '2026/27',
   timezone: 'America/Lima', // UTC-5 estricto
   locale: 'es-PE',
 
-  // Configuración de las 13 pestañas de Google Sheets
+  // Configuración de las 14 pestañas oficiales de Google Sheets
   googleSheets: {
     spreadsheetId: '1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw',
     sheetsUrl: 'https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit',
@@ -42,7 +42,8 @@ const MatchweekConfig = {
       'Alineaciones',
       'Clasificaciones',
       'Cobertura diaria',
-      'Detalle final'
+      'Detalle final',
+      'Auditoria semanal'
     ],
     // URL opcional de Google Apps Script Web App (si se despliega)
     appsScriptUrl: ''
@@ -270,7 +271,7 @@ const COMPETITIONS = [
 
 /**
  * ----------------------------------------------------------------------------
- * 3. ALMACÉN DE DATOS DINÁMICOS EN MEMORIA (13 PESTAÑAS)
+ * 3. ALMACÉN DE DATOS DINÁMICOS EN MEMORIA (14 PESTAÑAS)
  * ----------------------------------------------------------------------------
  */
 let FIXTURES = [];
@@ -285,6 +286,7 @@ let LINEUPS_RECORDS = [];
 let STANDINGS_RECORDS = [];
 let DAILY_COVERAGE_RECORDS = [];
 let FINAL_DETAILS_RECORDS = [];
+let AUDITORIA_SEMANAL_RECORDS = [];
 
 /**
  * ----------------------------------------------------------------------------
@@ -293,7 +295,7 @@ let FINAL_DETAILS_RECORDS = [];
  */
 const GoogleSheetsSyncService = {
   isQuerying: false,
-  cacheKey: 'matchweek_sheets_cache_v3',
+  cacheKey: 'matchweek_sheets_cache_v4',
 
   async syncAllSheets() {
     if (this.isQuerying) {
@@ -327,7 +329,7 @@ const GoogleSheetsSyncService = {
         rawData = await this.fetchViaDirectSheetsApi();
       }
 
-      // 3. Normalizar y transformar las 13 pestañas
+      // 3. Normalizar y transformar las 14 pestañas
       const normalized = DataTransformer.transformAllSheets(rawData);
 
       // 4. Actualizar almacén de memoria
@@ -343,6 +345,7 @@ const GoogleSheetsSyncService = {
       STANDINGS_RECORDS = normalized.clasificaciones;
       DAILY_COVERAGE_RECORDS = normalized.coberturaDiaria;
       FINAL_DETAILS_RECORDS = normalized.detalleFinal;
+      AUDITORIA_SEMANAL_RECORDS = normalized.auditoriaSemanal;
 
       const durationMs = Date.now() - startTime;
       const peruNow = CalendarService.getPeruNow();
@@ -371,6 +374,7 @@ const GoogleSheetsSyncService = {
           ultimos5Count: RECENT_FORM_RECORDS.length,
           detalleFinalCount: FINAL_DETAILS_RECORDS.length,
           coberturaCount: DAILY_COVERAGE_RECORDS.length,
+          auditoriaCount: AUDITORIA_SEMANAL_RECORDS.length,
           lastContentUpdate: normalized.control.length > 0 ? (normalized.control[0].finUtc || normalized.control[0].inicioUtc) : null
         }
       };
@@ -578,6 +582,32 @@ const DataTransformer = {
   },
 
   /**
+   * Normaliza formaciones deportivas evitando desvíos por formatos de fecha en Google Sheets.
+   * Ej: '4-4-2002' -> '4-4-2', '4-2-3-1' -> '4-2-3-1', '4-3-3' -> '4-3-3'.
+   */
+  normalizeFormation(rawForm) {
+    if (!rawForm) return '4-4-2';
+    const s = String(rawForm).trim();
+    if (s.includes('4-4-2') || s.includes('4/4/2002') || s.includes('4-4-2002')) return '4-4-2';
+    if (s.includes('4-3-3') || s.includes('4/3/2003') || s.includes('4-3-2003')) return '4-3-3';
+    if (s.includes('4-2-3-1')) return '4-2-3-1';
+    if (s.includes('3-5-2') || s.includes('3/5/2002') || s.includes('3-5-2002')) return '3-5-2';
+    if (s.includes('3-4-3')) return '3-4-3';
+    if (s.includes('5-3-2')) return '5-3-2';
+    if (s.includes('4-1-4-1')) return '4-1-4-1';
+    const match = s.match(/\d+(?:-\d+)+/);
+    if (match) {
+      const parts = match[0].split('-');
+      if (parts.length >= 3 && parts[parts.length - 1] > 2000) {
+        parts[parts.length - 1] = parts[parts.length - 1].slice(-1);
+        return parts.join('-');
+      }
+      return match[0];
+    }
+    return s || '4-4-2';
+  },
+
+  /**
    * Interpreta fecha y hora fijándolas estrictamente al día calendario de America/Lima (UTC-5).
    * Evita discrepancias causadas por horas UTC cercanas a medianoche.
    */
@@ -649,7 +679,8 @@ const DataTransformer = {
       alineaciones: [],
       clasificaciones: [],
       coberturaDiaria: [],
-      detalleFinal: []
+      detalleFinal: [],
+      auditoriaSemanal: []
     };
 
     // 1. Equipos
@@ -841,7 +872,7 @@ const DataTransformer = {
       numero: this.parseNumeric(r.numero),
       posicion: this.sanitizeText(r.posicion || ''),
       rol: this.sanitizeText(r.rol || 'jugador'),
-      formacion: this.sanitizeText(r.formacion || ''),
+      formacion: this.normalizeFormation(r.formacion),
       titular: String(r.titular || '').toLowerCase() === 'si' || String(r.titular || '').toLowerCase() === 'true' || r.titular === 1 || r.titular === true,
       minutoEntrada: this.parseNumeric(r.minuto_entrada),
       minutoSalida: this.parseNumeric(r.minuto_salida),
@@ -896,6 +927,24 @@ const DataTransformer = {
       asistenciaEstadio: this.parseNumeric(r.asistencia_estadio),
       resumenVerificado: this.sanitizeText(r.resumen_verificado || ''),
       fuenteUrl: this.sanitizeUrl(r.fuente_url)
+    }));
+
+    // 14. Auditoria semanal
+    const rawAuditoria = rawData['Auditoria semanal'] || [];
+    out.auditoriaSemanal = rawAuditoria.map(r => ({
+      partidoId: String(r.partido_id || '').trim(),
+      fechaPeru: String(r.fecha_peru || '').trim(),
+      competicionId: String(r.competicion_id || '').trim(),
+      encuentro: this.sanitizeText(r.encuentro || ''),
+      estadoActual: this.sanitizeText(r.estado_actual || ''),
+      estadio: this.sanitizeText(r.estadio || ''),
+      estadisticas: this.sanitizeText(r.estadisticas || ''),
+      alineaciones: this.sanitizeText(r.alineaciones || ''),
+      formaReciente: this.sanitizeText(r.forma_reciente || ''),
+      h2h: this.sanitizeText(r.h2h || ''),
+      clasificacion: this.sanitizeText(r.clasificacion || ''),
+      detalleFinal: this.sanitizeText(r.detalle_final || ''),
+      verificacionIntegral: this.sanitizeText(r.verificacion_integral || '')
     }));
 
     return out;
@@ -976,6 +1025,44 @@ const CalendarService = {
     return Array.from({ length: 7 }, (_, i) => this.addDays(mondayDate, i));
   },
 
+  getCurrentMonday() {
+    return this.getMonday(this.getPeruNow());
+  },
+
+  getNextMonday() {
+    return this.addDays(this.getCurrentMonday(), 7);
+  },
+
+  getTwoWeeksDays() {
+    const monday = this.getCurrentMonday();
+    return Array.from({ length: 14 }, (_, i) => this.addDays(monday, i));
+  },
+
+  getPeriodDays(mode = 'current') {
+    if (mode === 'next') {
+      return this.getDaysOfWeek(this.getNextMonday());
+    }
+    if (mode === '14days') {
+      return this.getTwoWeeksDays();
+    }
+    return this.getDaysOfWeek(this.getCurrentMonday());
+  },
+
+  getPeriodRangeIso(mode = 'current') {
+    const curMon = this.getCurrentMonday();
+    const curSun = this.addDays(curMon, 6);
+    const nxtMon = this.addDays(curMon, 7);
+    const nxtSun = this.addDays(nxtMon, 6);
+
+    if (mode === 'next') {
+      return { startIso: this.toIso(nxtMon), endIso: this.toIso(nxtSun), startDate: nxtMon, endDate: nxtSun };
+    }
+    if (mode === '14days') {
+      return { startIso: this.toIso(curMon), endIso: this.toIso(nxtSun), startDate: curMon, endDate: nxtSun };
+    }
+    return { startIso: this.toIso(curMon), endIso: this.toIso(curSun), startDate: curMon, endDate: curSun };
+  },
+
   isSameDay(d1, d2) {
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
@@ -1005,7 +1092,7 @@ const CalendarService = {
  * ----------------------------------------------------------------------------
  */
 const FavoritesService = {
-  storageKey: 'matchweek-favorites-v3',
+  storageKey: 'matchweek-favorites-v4',
 
   getFavoriteIds() {
     try {
@@ -1047,20 +1134,22 @@ const FavoritesService = {
 
 /**
  * ----------------------------------------------------------------------------
- * 8. ESTADO GLOBAL DE LA APLICACIÓN
+ * 8. ESTADO GLOBAL DE LA APLICACIÓN (MATCHWEEK 2.0)
  * ----------------------------------------------------------------------------
  */
 const State = {
-  view: 'inicio',            // 'inicio' | 'partidos' | 'favoritos' | 'competicion'
-  selectedLeague: 'all',     // 'all' o ID de competición
-  currentWeekStart: CalendarService.getMonday(),
-  selectedDay: 'all',        // 'all' o 'YYYY-MM-DD'
-  activeFilter: 'all',       // 'all' | 'featured' | 'upcoming' | 'finished'
+  view: 'inicio',              // 'inicio' | 'partidos' | 'favoritos' | 'competicion'
+  selectedLeague: 'all',       // 'all' o ID de competición
+  periodMode: 'current',       // 'current' (esta semana) | 'next' (próxima semana) | '14days' (ver 14 días)
+  currentWeekStart: CalendarService.getCurrentMonday(),
+  selectedDay: 'all',          // 'all' o 'YYYY-MM-DD'
+  activeFilter: 'all',         // 'all' | 'featured' | 'upcoming' | 'finished'
   searchQuery: '',
   favorites: FavoritesService.getFavoriteIds(),
-  lastSyncResult: null,      // Resultado de la última consulta a Google Sheets
-  activeModalMatchId: null,  // ID del partido abierto en el modal
-  activeModalTab: 'resumen'  // 'resumen' | 'estadisticas' | 'alineaciones' | 'forma' | 'h2h' | 'clasificacion'
+  lastSyncResult: null,        // Resultado de la última consulta a Google Sheets
+  activeModalMatchId: null,    // ID del partido abierto en el modal
+  activeModalTab: 'resumen',    // 'resumen' | 'estadisticas' | 'alineaciones' | 'forma' | 'h2h' | 'clasificacion'
+  lineupViewMode: 'pitch'      // 'pitch' (cancha táctica) | 'list' (vista lista)
 };
 
 /**
@@ -1141,15 +1230,18 @@ const UI = {
     this.toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
   },
 
+  getFixturesForPeriod() {
+    const range = CalendarService.getPeriodRangeIso(State.periodMode);
+    return FIXTURES.filter(f => f.date >= range.startIso && f.date <= range.endIso);
+  },
+
   getFixturesForWeek() {
-    const startIso = CalendarService.toIso(State.currentWeekStart);
-    const endIso = CalendarService.toIso(CalendarService.getWeekEnd(State.currentWeekStart));
-    return FIXTURES.filter(f => f.date >= startIso && f.date <= endIso);
+    return this.getFixturesForPeriod();
   },
 
   getVisibleFixtures() {
-    const week = this.getFixturesForWeek();
-    return week.filter(f => {
+    const periodMatches = this.getFixturesForPeriod();
+    const filtered = periodMatches.filter(f => {
       if (State.selectedLeague !== 'all' && f.league !== State.selectedLeague) return false;
       if (State.selectedDay !== 'all' && f.date !== State.selectedDay) return false;
       if (State.view === 'favoritos' && !State.favorites.has(String(f.id))) return false;
@@ -1163,6 +1255,11 @@ const UI = {
         if (!text.includes(State.searchQuery)) return false;
       }
       return true;
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.time || '').localeCompare(b.time || '');
     });
   },
 
@@ -1191,10 +1288,10 @@ const UI = {
       State.lastSyncResult = result;
       this.render();
 
-      const weekMatches = this.getFixturesForWeek().length;
-      if (weekMatches === 0) {
+      const periodMatches = this.getFixturesForPeriod().length;
+      if (periodMatches === 0) {
         this.setSyncButtonState('empty', result);
-        this.showToast('Google Sheets consultado: sin partidos registrados para esta semana.');
+        this.showToast('Google Sheets consultado: sin partidos registrados para el período seleccionado.');
       } else {
         this.setSyncButtonState('success', result);
         this.showToast(`Datos actualizados correctamente (${result.summary.partidosCount} partidos en total).`);
@@ -1226,7 +1323,7 @@ const UI = {
 
       if (dot) dot.className = 'sync-status-dot loading';
       if (headline) headline.textContent = 'Consultando datos deportivos...';
-      if (sub) sub.textContent = 'Conectando con Google Sheets y leyendo las 13 pestañas oficiales...';
+      if (sub) sub.textContent = 'Conectando con Google Sheets y leyendo las 14 pestañas oficiales...';
       return;
     }
 
@@ -1240,7 +1337,7 @@ const UI = {
     if (stateType === 'success') {
       if (dot) dot.className = 'sync-status-dot success';
       if (headline) headline.textContent = 'Datos actualizados correctamente.';
-      if (sub) sub.textContent = `Consulta completada en ${payload.durationMs || 150} ms. 13 pestañas sincronizadas.`;
+      if (sub) sub.textContent = `Consulta completada en ${payload.durationMs || 150} ms. 14 pestañas sincronizadas.`;
       if (lastQueryTime) lastQueryTime.textContent = payload.queryTimePeru || 'Reciente (Hora Perú)';
       if (contentStatus) {
         contentStatus.textContent = payload.summary?.partidosCount
@@ -1280,6 +1377,7 @@ const UI = {
     this.renderHeroAndOverview();
     this.renderCompetitionsHub();
     this.renderCompetitionBanner();
+    this.renderPeriodSelector();
     this.renderWeekControls();
     this.renderDateStrip();
     this.renderFilterButtons();
@@ -1507,12 +1605,38 @@ const UI = {
     });
   },
 
+  renderPeriodSelector() {
+    const btnCurrent = this.$('btnPeriodCurrent');
+    const btnNext = this.$('btnPeriodNext');
+    const btn14Days = this.$('btnPeriod14Days');
+    if (!btnCurrent || !btnNext || !btn14Days) return;
+
+    btnCurrent.classList.toggle('active', State.periodMode === 'current');
+    btnCurrent.setAttribute('aria-pressed', State.periodMode === 'current');
+
+    btnNext.classList.toggle('active', State.periodMode === 'next');
+    btnNext.setAttribute('aria-pressed', State.periodMode === 'next');
+
+    btn14Days.classList.toggle('active', State.periodMode === '14days');
+    btn14Days.setAttribute('aria-pressed', State.periodMode === '14days');
+  },
+
   renderWeekControls() {
     const weekLabel = this.$('weekLabel');
     if (weekLabel) {
-      const start = State.currentWeekStart;
-      const end = CalendarService.getWeekEnd(start);
-      weekLabel.textContent = `${CalendarService.format(start, { day: 'numeric', month: 'short' })} – ${CalendarService.format(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      if (State.periodMode === '14days') {
+        const start = CalendarService.getCurrentMonday();
+        const end = CalendarService.addDays(CalendarService.getNextMonday(), 6);
+        weekLabel.textContent = `14 DÍAS: ${CalendarService.format(start, { day: 'numeric', month: 'short' })} – ${CalendarService.format(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      } else if (State.periodMode === 'next') {
+        const start = CalendarService.getNextMonday();
+        const end = CalendarService.getWeekEnd(start);
+        weekLabel.textContent = `PRÓXIMA SEMANA: ${CalendarService.format(start, { day: 'numeric', month: 'short' })} – ${CalendarService.format(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      } else {
+        const start = CalendarService.getCurrentMonday();
+        const end = CalendarService.getWeekEnd(start);
+        weekLabel.textContent = `${CalendarService.format(start, { day: 'numeric', month: 'short' })} – ${CalendarService.format(end, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      }
     }
 
     const gamesHeading = this.$('gamesHeading');
@@ -1527,11 +1651,11 @@ const UI = {
         gamesKicker.textContent = 'SEGUIMIENTO PERSONAL';
         gamesHeading.innerHTML = 'Tus favoritos<span class="accent">.</span>';
       } else if (State.view === 'partidos') {
-        gamesKicker.textContent = 'AGENDA COMPLETA';
-        gamesHeading.innerHTML = 'Todos los partidos<span class="accent">.</span>';
+        gamesKicker.textContent = State.periodMode === '14days' ? 'CALENDARIO DE 14 DÍAS' : 'AGENDA COMPLETA';
+        gamesHeading.innerHTML = `${State.periodMode === '14days' ? 'Dos semanas de partidos' : 'Todos los partidos'}<span class="accent">.</span>`;
       } else {
-        gamesKicker.textContent = 'AGENDA SEMANAL / 2026—27';
-        gamesHeading.innerHTML = 'Próximos encuentros<span class="accent">.</span>';
+        gamesKicker.textContent = State.periodMode === '14days' ? 'CALENDARIO DE 14 DÍAS / DOS SEMANAS' : (State.periodMode === 'next' ? 'PRÓXIMA SEMANA / 2026—27' : 'SEMANA ACTUAL / 2026—27');
+        gamesHeading.innerHTML = `${State.periodMode === '14days' ? 'Dos semanas de partidos' : 'Próximos encuentros'}<span class="accent">.</span>`;
       }
     }
 
@@ -1544,25 +1668,31 @@ const UI = {
 
   /**
    * Tira de Selección de Fecha:
-   * Incluye el botón selector «Toda la semana» + los 7 días (Lunes a Domingo)
+   * Reactiva al período: 7 días en semana actual/próxima o 14 días completos en "Ver 14 días"
    */
   renderDateStrip() {
     const strip = this.$('dateStrip');
     if (!strip) return;
 
-    const days = CalendarService.getDaysOfWeek(State.currentWeekStart);
-    const weekMatchesTotal = this.getFixturesForWeek().filter(f => State.selectedLeague === 'all' || f.league === State.selectedLeague).length;
+    const days = CalendarService.getPeriodDays(State.periodMode);
+    const periodMatchesTotal = this.getFixturesForPeriod().filter(f => State.selectedLeague === 'all' || f.league === State.selectedLeague).length;
     const isSelectedAll = State.selectedDay === 'all';
+
+    const allPillTitle = State.periodMode === '14days'
+      ? `Ver todos los partidos de las dos semanas (${periodMatchesTotal} encuentros)`
+      : `Ver todos los partidos de lunes a domingo (${periodMatchesTotal} encuentros)`;
+
+    const allPillTop = State.periodMode === '14days' ? '14 DÍAS' : 'SEMANA';
 
     let html = `
       <button
         class="date-pill date-pill-all ${isSelectedAll ? 'active' : ''}"
         data-day="all"
         aria-pressed="${isSelectedAll}"
-        title="Ver todos los partidos de lunes a domingo (${weekMatchesTotal} encuentros)">
-        <span class="day-name">SEMANA</span>
+        title="${allPillTitle}">
+        <span class="day-name">${allPillTop}</span>
         <span class="day-number tabular-nums">TODOS</span>
-        <span class="day-indicator ${weekMatchesTotal > 0 ? 'has-matches' : ''}"></span>
+        <span class="day-indicator ${periodMatchesTotal > 0 ? 'has-matches' : ''}"></span>
       </button>
     `;
 
@@ -1834,17 +1964,52 @@ const UI = {
   },
 
   renderMatchGroups(matches) {
-    const groups = matches.reduce((acc, m) => {
+    const dayGroups = matches.reduce((acc, m) => {
       (acc[m.date] = acc[m.date] || []).push(m);
       return acc;
     }, {});
 
-    return Object.keys(groups).sort().map(dateStr => {
+    return Object.keys(dayGroups).sort().map(dateStr => {
       const [y, m, d] = dateStr.split('-').map(Number);
       const dateObj = new Date(y, m - 1, d, 12, 0, 0);
       const dateTitle = CalendarService.format(dateObj, { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
       const isTodayGroup = CalendarService.isToday(dateObj);
-      const dayMatches = groups[dateStr];
+      const dayMatches = dayGroups[dateStr];
+
+      // Subagrupación por competición dentro del día
+      const compMap = dayMatches.reduce((acc, m) => {
+        (acc[m.league] = acc[m.league] || []).push(m);
+        return acc;
+      }, {});
+
+      const compKeys = Object.keys(compMap).sort((a, b) => {
+        const idxA = COMPETITIONS.findIndex(c => c.id === a);
+        const idxB = COMPETITIONS.findIndex(c => c.id === b);
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      });
+
+      const compBlocksHtml = compKeys.map(leagueId => {
+        const comp = COMPETITIONS.find(c => c.id === leagueId) || {
+          id: leagueId,
+          name: leagueId,
+          flag: '⚽',
+          accentColor: '#C6FF4D'
+        };
+        const compMatches = compMap[leagueId].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+        return `
+          <div class="comp-group-block">
+            <div class="comp-group-header" style="--comp-accent: ${comp.accentColor}">
+              <span class="comp-group-flag">${comp.flag}</span>
+              <span class="comp-group-title" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name)}</span>
+              <span class="comp-group-count tabular-nums">${compMatches.length} ${compMatches.length === 1 ? 'partido' : 'partidos'}</span>
+            </div>
+            <div class="day-matches-grid">
+              ${compMatches.map(m => this.renderMatchCard(m)).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       return `
         <div class="day-group ${isTodayGroup ? 'is-today-group' : ''}">
@@ -1855,8 +2020,8 @@ const UI = {
             <span class="day-heading-line"></span>
             <span class="day-heading-count tabular-nums">${dayMatches.length} ${dayMatches.length === 1 ? 'PARTIDO' : 'PARTIDOS'}</span>
           </div>
-          <div class="day-matches-grid">
-            ${dayMatches.map(m => this.renderMatchCard(m)).join('')}
+          <div class="day-comps-container">
+            ${compBlocksHtml}
           </div>
         </div>
       `;
@@ -1866,6 +2031,7 @@ const UI = {
   /**
    * Renderiza la tarjeta de partido diferenciando claramente los 7 estados:
    * FINALIZADO | EN_VIVO | DESCANSO | PROGRAMADO | APLAZADO | SUSPENDIDO | CANCELADO
+   * Toda la tarjeta permite abrir el análisis táctico.
    */
   renderMatchCard(m) {
     const comp = COMPETITIONS.find(c => c.id === m.league) || { name: 'Fútbol', accentColor: '#C6FF4D' };
@@ -1912,10 +2078,15 @@ const UI = {
     }
 
     return `
-      <article class="match-card ${m.status === 'finished' ? 'is-finished' : ''} ${m.status === 'live' ? 'is-live' : ''}" data-match-id="${m.id}">
+      <article
+        class="match-card ${m.status === 'finished' ? 'is-finished' : ''} ${m.status === 'live' ? 'is-live' : ''}"
+        data-match-id="${m.id}"
+        tabindex="0"
+        role="button"
+        aria-label="Ver análisis de ${this.escapeHtml(m.homeTeam)} contra ${this.escapeHtml(m.awayTeam)}">
         <div class="match-meta">
           <span class="competition" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name)}</span>
-          <small class="tabular-nums">${this.escapeHtml(m.venue)} · Hora Perú</small>
+          <small class="tabular-nums">${this.escapeHtml(m.venue || 'Estadio oficial')} · Hora Perú</small>
         </div>
         <div class="teams">
           <div class="team">
@@ -1937,7 +2108,7 @@ const UI = {
         </div>
         ${scorersHtml}
         <div class="match-action">
-          <button class="fav-button ${isFav ? 'saved' : ''}" data-fav="${m.id}" aria-label="Favorito">
+          <button class="fav-button ${isFav ? 'saved' : ''}" data-fav="${m.id}" aria-label="Favorito" title="${isFav ? 'Quitar de favoritos' : 'Añadir a favoritos'}">
             ${isFav ? '♥' : '♡'}
           </button>
           <button class="details-button" data-detail="${m.id}">Análisis ↗</button>
@@ -1990,6 +2161,742 @@ const UI = {
     dialog.showModal();
   },
 
+  calculatePitchCoordinates(starters, formationStr, isHomeTeam) {
+    const formation = DataTransformer.normalizeFormation(formationStr);
+    const lines = formation.split('-').map(Number).filter(n => !isNaN(n) && n > 0);
+
+    // Encontrar portero (POR)
+    let gkIndex = starters.findIndex(p => p.posicion === 'POR');
+    if (gkIndex === -1) gkIndex = 0;
+
+    const fieldPlayers = starters.filter((_, idx) => idx !== gkIndex);
+    const result = [];
+
+    // Portero en el área
+    result.push({
+      player: starters[gkIndex] || { jugadorNombre: 'Portero', numero: 1, posicion: 'POR' },
+      x: 50,
+      y: isHomeTeam ? 92 : 8
+    });
+
+    // Líneas de campo (defensas, medios, delanteros)
+    let playerOffset = 0;
+    const numLines = lines.length;
+
+    lines.forEach((lineCount, lineIdx) => {
+      let yPct = 50;
+      if (isHomeTeam) {
+        const yMin = 82;
+        const yMax = 56;
+        yPct = numLines === 1 ? 70 : yMin - (lineIdx / (numLines - 1)) * (yMin - yMax);
+      } else {
+        const yMin = 18;
+        const yMax = 44;
+        yPct = numLines === 1 ? 30 : yMin + (lineIdx / (numLines - 1)) * (yMax - yMin);
+      }
+
+      for (let i = 0; i < lineCount; i++) {
+        const p = fieldPlayers[playerOffset + i] || { jugadorNombre: `Jugador ${playerOffset + i + 1}`, numero: '•', posicion: 'CAMPO' };
+        const xPct = ((i + 1) / (lineCount + 1)) * 100;
+        result.push({
+          player: p,
+          x: Number(xPct.toFixed(1)),
+          y: Number(yPct.toFixed(1))
+        });
+      }
+      playerOffset += lineCount;
+    });
+
+    return result;
+  },
+
+  renderPitchPlayerNode(item, isHome, matchGoals, matchEvents) {
+    const p = item.player;
+    const num = p.numero || '•';
+
+    const pName = (p.jugadorNombre || '').toLowerCase();
+    const goalsCount = matchGoals.filter(g => g.jugadorNombre && pName && (g.jugadorNombre.toLowerCase().includes(pName) || pName.includes(g.jugadorNombre.toLowerCase()))).length;
+    const hasYellow = matchEvents.some(e => e.tipoEvento.includes('amarilla') && e.jugadorNombre && pName && e.jugadorNombre.toLowerCase().includes(pName));
+    const hasRed = matchEvents.some(e => e.tipoEvento.includes('roja') && e.jugadorNombre && pName && e.jugadorNombre.toLowerCase().includes(pName));
+    const isSubbed = matchEvents.some(e => (e.tipoEvento.includes('sustitucion') || e.tipoEvento.includes('cambio')) && e.jugadorNombre && pName && e.jugadorNombre.toLowerCase().includes(pName));
+
+    let incidentsHtml = '';
+    if (goalsCount > 0) incidentsHtml += `⚽${goalsCount > 1 ? goalsCount : ''}`;
+    if (hasRed) incidentsHtml += '🟥';
+    else if (hasYellow) incidentsHtml += '🟨';
+    if (isSubbed) incidentsHtml += '🔄';
+
+    const rawName = (p.jugadorNombre || '').trim();
+    const parts = rawName.split(/\s+/);
+    const shortName = parts.length > 1 ? parts[parts.length - 1] : rawName;
+
+    return `
+      <div
+        class="pitch-player-node ${isHome ? 'home-player' : 'away-player'}"
+        style="left: ${item.x}%; top: ${item.y}%;"
+        title="${this.escapeHtml(rawName)} (#${num} · ${this.escapeHtml(p.posicion || 'Campo')})">
+        <div class="player-jersey">
+          ${num}
+          ${incidentsHtml ? `<span class="player-incidents">${incidentsHtml}</span>` : ''}
+        </div>
+        <span class="player-short-name">${this.escapeHtml(shortName)}</span>
+      </div>
+    `;
+  },
+
+  renderTacticalPitchHtml(match, matchLineups, matchGoals, matchEvents) {
+    if (matchLineups.length === 0) {
+      return `
+        <div class="dialog-empty-panel">
+          <span class="dialog-empty-icon">📋</span>
+          <strong>Alineaciones pendientes de confirmación</strong>
+          <p>Las alineaciones oficiales se confirmarán en la pestaña <code>Alineaciones</code> de Google Sheets previo al inicio del encuentro. No se inventaron jugadores ficticios.</p>
+        </div>
+      `;
+    }
+
+    const homeLineups = matchLineups.filter(l => l.equipoId === match.localId);
+    const awayLineups = matchLineups.filter(l => l.equipoId === match.visitanteId);
+
+    const homeStarters = homeLineups.filter(l => l.titular);
+    const awayStarters = awayLineups.filter(l => l.titular);
+
+    const homeSubs = homeLineups.filter(l => !l.titular && l.posicion !== 'DT');
+    const awaySubs = awayLineups.filter(l => !l.titular && l.posicion !== 'DT');
+
+    const homeCoach = homeLineups.find(l => l.posicion === 'DT' || l.tipo === 'ENTRENADOR');
+    const awayCoach = awayLineups.find(l => l.posicion === 'DT' || l.tipo === 'ENTRENADOR');
+
+    const rawHomeFormation = homeLineups[0]?.formacion || '4-4-2';
+    const rawAwayFormation = awayLineups[0]?.formacion || '4-4-2';
+
+    const homeFormation = DataTransformer.normalizeFormation(rawHomeFormation);
+    const awayFormation = DataTransformer.normalizeFormation(rawAwayFormation);
+
+    let tacticalPitchBoardHtml = '';
+    if (State.lineupViewMode === 'pitch' && (homeStarters.length > 0 || awayStarters.length > 0)) {
+      const homeCoords = this.calculatePitchCoordinates(homeStarters, homeFormation, true);
+      const awayCoords = this.calculatePitchCoordinates(awayStarters, awayFormation, false);
+
+      tacticalPitchBoardHtml = `
+        <div class="tactical-pitch-card">
+          <div class="tactical-team-banner away-banner">
+            <span>${this.escapeHtml(match.awayTeam)}</span>
+            <span class="tabular-nums">${awayFormation}</span>
+          </div>
+
+          <div class="tactical-pitch-board">
+            <svg viewBox="0 0 100 140" class="tactical-pitch-svg" preserveAspectRatio="none">
+              <!-- Césped y contorno -->
+              <rect x="2" y="2" width="96" height="136" rx="4" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <!-- Línea central y círculo -->
+              <line x1="2" y1="70" x2="98" y2="70" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <circle cx="50" cy="70" r="14" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <circle cx="50" cy="70" r="1" fill="rgba(255,255,255,0.8)"/>
+              
+              <!-- Área Visitante -->
+              <rect x="24" y="2" width="52" height="22" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <rect x="36" y="2" width="28" height="8" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <circle cx="50" cy="16" r="1" fill="rgba(255,255,255,0.8)"/>
+              <path d="M 40 24 A 10 10 0 0 0 60 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+
+              <!-- Área Local -->
+              <rect x="24" y="116" width="52" height="22" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <rect x="36" y="130" width="28" height="8" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+              <circle cx="50" cy="124" r="1" fill="rgba(255,255,255,0.8)"/>
+              <path d="M 40 116 A 10 10 0 0 1 60 116" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+            </svg>
+
+            <!-- Jugadores Visitantes -->
+            ${awayCoords.map(item => this.renderPitchPlayerNode(item, false, matchGoals, matchEvents)).join('')}
+
+            <!-- Jugadores Locales -->
+            ${homeCoords.map(item => this.renderPitchPlayerNode(item, true, matchGoals, matchEvents)).join('')}
+          </div>
+
+          <div class="tactical-team-banner home-banner">
+            <span>${this.escapeHtml(match.homeTeam)}</span>
+            <span class="tabular-nums">${homeFormation}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="dialog-panel">
+        <div class="lineup-toggle-header">
+          <div class="lineup-toggle-bar">
+            <button class="lineup-toggle-btn ${State.lineupViewMode === 'pitch' ? 'active' : ''}" data-lineup-view="pitch">Vista Cancha Táctica ⚽</button>
+            <button class="lineup-toggle-btn ${State.lineupViewMode === 'list' ? 'active' : ''}" data-lineup-view="list">Vista Lista 📋</button>
+          </div>
+          <span class="comp-tag">Formación confirmada</span>
+        </div>
+
+        ${tacticalPitchBoardHtml}
+
+        <div class="lineups-split">
+          <div class="lineup-side">
+            <h4>${this.escapeHtml(match.homeTeam)} <small class="tabular-nums">(${homeFormation})</small></h4>
+            <div class="subgroup-title"><span>Titulares (${homeStarters.length})</span></div>
+            <div class="lineup-list">
+              ${homeStarters.map(p => `
+                <div class="player-row starter">
+                  <span class="player-num tabular-nums">${p.numero || '—'}</span>
+                  <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
+                  <small class="player-pos">${this.escapeHtml(p.posicion || 'Titular')}</small>
+                </div>
+              `).join('')}
+            </div>
+            ${homeSubs.length > 0 ? `
+              <div class="subgroup-title" style="margin-top: 14px;"><span>Suplentes (${homeSubs.length})</span></div>
+              <div class="lineup-list">
+                ${homeSubs.map(p => `
+                  <div class="player-row sub">
+                    <span class="player-num tabular-nums">${p.numero || '—'}</span>
+                    <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
+                    <small class="player-pos">${this.escapeHtml(p.posicion || 'Suplente')}</small>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${homeCoach ? `
+              <div class="detail-row" style="margin-top: 12px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Entrenador:</span>
+                <strong style="font-size: 12px;">${this.escapeHtml(homeCoach.jugadorNombre)}</strong>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="lineup-side">
+            <h4>${this.escapeHtml(match.awayTeam)} <small class="tabular-nums">(${awayFormation})</small></h4>
+            <div class="subgroup-title"><span>Titulares (${awayStarters.length})</span></div>
+            <div class="lineup-list">
+              ${awayStarters.map(p => `
+                <div class="player-row starter">
+                  <span class="player-num tabular-nums">${p.numero || '—'}</span>
+                  <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
+                  <small class="player-pos">${this.escapeHtml(p.posicion || 'Titular')}</small>
+                </div>
+              `).join('')}
+            </div>
+            ${awaySubs.length > 0 ? `
+              <div class="subgroup-title" style="margin-top: 14px;"><span>Suplentes (${awaySubs.length})</span></div>
+              <div class="lineup-list">
+                ${awaySubs.map(p => `
+                  <div class="player-row sub">
+                    <span class="player-num tabular-nums">${p.numero || '—'}</span>
+                    <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
+                    <small class="player-pos">${this.escapeHtml(p.posicion || 'Suplente')}</small>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            ${awayCoach ? `
+              <div class="detail-row" style="margin-top: 12px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Entrenador:</span>
+                <strong style="font-size: 12px;">${this.escapeHtml(awayCoach.jugadorNombre)}</strong>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderComparativeStatsHtml(match, matchStats) {
+    const currentMatchStats = matchStats.filter(s => !s.metrica.toLowerCase().startsWith('h2h_'));
+
+    if (currentMatchStats.length === 0) {
+      return `
+        <div class="dialog-empty-panel">
+          <span class="dialog-empty-icon">📈</span>
+          <strong>Estadísticas oficiales no disponibles</strong>
+          <p>La pestaña <code>Estadisticas</code> de Google Sheets aún no contiene métricas registradas para este partido.</p>
+        </div>
+      `;
+    }
+
+    const categories = [
+      {
+        id: 'control',
+        name: 'Control de juego',
+        icon: '⏱',
+        metrics: [
+          { key: 'posesion', label: 'Posesión', isPct: true },
+          { key: 'pases', label: 'Pases totales', isPct: false },
+          { key: 'precision_pases', label: 'Precisión de pases', isPct: true }
+        ]
+      },
+      {
+        id: 'ataque',
+        name: 'Ataque',
+        icon: '⚡',
+        metrics: [
+          { key: 'remates', label: 'Remates totales', isPct: false },
+          { key: 'remates_arco', label: 'Remates a puerta', isPct: false },
+          { key: 'remates_fuera', label: 'Remates fuera', isPct: false },
+          { key: 'xg', label: 'Goles esperados (xG)', isPct: false }
+        ]
+      },
+      {
+        id: 'disciplina',
+        name: 'Disciplina',
+        icon: '🟨',
+        metrics: [
+          { key: 'faltas', label: 'Faltas cometidas', isPct: false },
+          { key: 'amarillas', label: 'Tarjetas amarillas', isPct: false },
+          { key: 'rojas', label: 'Tarjetas rojas', isPct: false }
+        ]
+      },
+      {
+        id: 'otras',
+        name: 'Otras métricas',
+        icon: '🛡',
+        metrics: [
+          { key: 'corners', label: 'Córners', isPct: false },
+          { key: 'fueras_juego', label: 'Fueras de juego', isPct: false },
+          { key: 'paradas', label: 'Paradas del portero', isPct: false }
+        ]
+      }
+    ];
+
+    const getStatValues = (metricKey) => {
+      const homeRow = currentMatchStats.find(s => s.equipoId === match.localId && (s.metrica.toLowerCase() === metricKey || s.metrica.toLowerCase().includes(metricKey)));
+      const awayRow = currentMatchStats.find(s => s.equipoId === match.visitanteId && (s.metrica.toLowerCase() === metricKey || s.metrica.toLowerCase().includes(metricKey)));
+
+      if (!homeRow && !awayRow) return null;
+
+      const rawHomeVal = homeRow ? String(homeRow.valor).replace('%', '').trim() : null;
+      const rawAwayVal = awayRow ? String(awayRow.valor).replace('%', '').trim() : null;
+
+      const homeNum = rawHomeVal !== null ? parseFloat(rawHomeVal) : 0;
+      const awayNum = rawAwayVal !== null ? parseFloat(rawAwayVal) : 0;
+      const unit = homeRow?.unidad || awayRow?.unidad || '';
+
+      return {
+        homeVal: isNaN(homeNum) ? 0 : homeNum,
+        awayVal: isNaN(awayNum) ? 0 : awayNum,
+        homeDisplay: homeRow ? `${homeRow.valor}${unit && !String(homeRow.valor).includes(unit) ? ' ' + unit : ''}` : '—',
+        awayDisplay: awayRow ? `${awayRow.valor}${unit && !String(awayRow.valor).includes(unit) ? ' ' + unit : ''}` : '—'
+      };
+    };
+
+    let categoriesHtml = '';
+
+    categories.forEach(cat => {
+      const renderedMetrics = [];
+
+      cat.metrics.forEach(m => {
+        const vals = getStatValues(m.key);
+        if (!vals) return;
+
+        let homeBarPct = 50;
+        let awayBarPct = 50;
+
+        if (m.isPct) {
+          homeBarPct = Math.min(100, Math.max(0, vals.homeVal));
+          awayBarPct = 100 - homeBarPct;
+        } else {
+          const sum = vals.homeVal + vals.awayVal;
+          if (sum > 0) {
+            homeBarPct = Number(((vals.homeVal / sum) * 100).toFixed(1));
+            awayBarPct = Number((100 - homeBarPct).toFixed(1));
+          }
+        }
+
+        const isHomeDominant = vals.homeVal > vals.awayVal && m.key !== 'faltas';
+        const isAwayDominant = vals.awayVal > vals.homeVal && m.key !== 'faltas';
+
+        renderedMetrics.push(`
+          <div class="stat-compare-row">
+            <div class="stat-compare-header">
+              <span class="stat-val-home ${isHomeDominant ? 'is-dominant' : ''} tabular-nums">${vals.homeDisplay}</span>
+              <span class="stat-name-center">${this.escapeHtml(m.label)}</span>
+              <span class="stat-val-away ${isAwayDominant ? 'is-dominant' : ''} tabular-nums">${vals.awayDisplay}</span>
+            </div>
+            <div class="stat-compare-bar-track">
+              <div class="stat-bar-fill-home" style="width: ${homeBarPct}%"></div>
+              <div class="stat-bar-fill-away" style="width: ${awayBarPct}%"></div>
+            </div>
+          </div>
+        `);
+      });
+
+      if (renderedMetrics.length > 0) {
+        categoriesHtml += `
+          <div class="stats-category-block">
+            <div class="stats-category-title">
+              <span>${cat.icon} ${this.escapeHtml(cat.name)}</span>
+            </div>
+            ${renderedMetrics.join('')}
+          </div>
+        `;
+      }
+    });
+
+    if (!categoriesHtml) {
+      categoriesHtml = `
+        <div class="stats-category-block">
+          <div class="stats-category-title"><span>Estadísticas del encuentro</span></div>
+          <div class="stats-table">
+            ${currentMatchStats.map(s => `
+              <div class="stat-row">
+                <span class="stat-name">${this.escapeHtml(s.metrica)}</span>
+                <span class="stat-team-id">${this.escapeHtml(s.equipoId)}</span>
+                <strong class="stat-val tabular-nums">${this.escapeHtml(s.valor)} ${this.escapeHtml(s.unidad)}</strong>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="dialog-panel">
+        ${categoriesHtml}
+        <div class="dialog-note">
+          <strong>Visualización profesional:</strong> Barras comparativas proporcionales basadas en métricas oficiales de la pestaña <code>Estadisticas</code>.
+        </div>
+      </div>
+    `;
+  },
+
+  renderBilateralScorersHtml(match, matchGoals) {
+    if (matchGoals.length === 0) {
+      if (match.status === 'finished') {
+        return `
+          <div class="empty-subpanel" style="margin-bottom: 14px;">
+            <span>${match.hasScore && match.homeGoals === 0 && match.awayGoals === 0 ? 'Empate sin goles (0 - 0).' : 'Detalle de goleadores pendiente de confirmación en la pestaña Goles.'}</span>
+          </div>
+        `;
+      }
+      return '';
+    }
+
+    const homeGoals = matchGoals.filter(g => g.equipoId === match.localId);
+    const awayGoals = matchGoals.filter(g => g.equipoId === match.visitanteId);
+
+    return `
+      <div class="dialog-subgroup" style="margin-top: 10px;">
+        <div class="subgroup-title"><span>GOLEADORES OFICIALES</span></div>
+        <div class="scorers-bilateral">
+          <div class="scorers-column">
+            <span class="scorers-column-title">${this.escapeHtml(match.homeTeam)}</span>
+            ${homeGoals.length > 0 ? homeGoals.map(g => `
+              <div class="goal-item">
+                <span class="goal-min tabular-nums">${g.minuto}'${g.adicional ? `+${g.adicional}` : ''}</span>
+                <span class="goal-ball">⚽</span>
+                <div class="goal-text">
+                  <strong>${this.escapeHtml(g.jugadorNombre)}</strong>
+                  <small>${g.tipoGol !== 'NORMAL' ? `${g.tipoGol} ` : ''}${g.asistenciaJugador ? `· Asistencia: ${this.escapeHtml(g.asistenciaJugador)}` : ''}</small>
+                </div>
+              </div>
+            `).join('') : '<span style="font-size: 11px; color: var(--text-dim);">Sin goles</span>'}
+          </div>
+
+          <div class="scorers-column">
+            <span class="scorers-column-title">${this.escapeHtml(match.awayTeam)}</span>
+            ${awayGoals.length > 0 ? awayGoals.map(g => `
+              <div class="goal-item">
+                <span class="goal-min tabular-nums">${g.minuto}'${g.adicional ? `+${g.adicional}` : ''}</span>
+                <span class="goal-ball">⚽</span>
+                <div class="goal-text">
+                  <strong>${this.escapeHtml(g.jugadorNombre)}</strong>
+                  <small>${g.tipoGol !== 'NORMAL' ? `${g.tipoGol} ` : ''}${g.asistenciaJugador ? `· Asistencia: ${this.escapeHtml(g.asistenciaJugador)}` : ''}</small>
+                </div>
+              </div>
+            `).join('') : '<span style="font-size: 11px; color: var(--text-dim);">Sin goles</span>'}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  renderBilateralTimelineHtml(match, matchEvents) {
+    if (matchEvents.length === 0) {
+      if (match.status === 'finished') {
+        return `
+          <div class="timeline-empty-notice">
+            <span>Cronología no disponible para este encuentro</span>
+          </div>
+        `;
+      }
+      return `
+        <div class="timeline-empty-notice">
+          <span>Cronología pendiente de publicación</span>
+        </div>
+      `;
+    }
+
+    const rowsHtml = matchEvents.map(e => {
+      let icon = '⏱';
+      if (e.tipoEvento.includes('gol')) icon = '⚽';
+      else if (e.tipoEvento.includes('amarilla')) icon = '🟨';
+      else if (e.tipoEvento.includes('roja')) icon = '🟥';
+      else if (e.tipoEvento.includes('sustitucion') || e.tipoEvento.includes('cambio')) icon = '🔄';
+      else if (e.tipoEvento.includes('penalti')) icon = '🎯';
+      else if (e.tipoEvento.includes('var')) icon = '📺';
+
+      const isHome = e.equipoId === match.localId;
+      const isAway = e.equipoId === match.visitanteId;
+
+      const cardHtml = `
+        <div class="timeline-event-card ${isHome ? 'home' : (isAway ? 'away' : 'home')}">
+          ${isHome ? `
+            <div class="timeline-card-content">
+              <strong>${this.escapeHtml(e.jugadorNombre || e.tipoEvento.toUpperCase())}</strong>
+              <small>${this.escapeHtml(e.descripcion || '')}</small>
+            </div>
+            <span class="timeline-card-icon">${icon}</span>
+          ` : `
+            <span class="timeline-card-icon">${icon}</span>
+            <div class="timeline-card-content">
+              <strong>${this.escapeHtml(e.jugadorNombre || e.tipoEvento.toUpperCase())}</strong>
+              <small>${this.escapeHtml(e.descripcion || '')}</small>
+            </div>
+          `}
+        </div>
+      `;
+
+      return `
+        <div class="timeline-event-row">
+          ${isHome ? cardHtml : '<div></div>'}
+          <span class="timeline-axis-badge tabular-nums">${e.minuto}'</span>
+          ${isAway ? cardHtml : '<div></div>'}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="dialog-subgroup">
+        <div class="subgroup-title"><span>LÍNEA DE TIEMPO DEL ENCUENTRO</span></div>
+        <div class="timeline-bilateral">
+          ${rowsHtml}
+        </div>
+      </div>
+    `;
+  },
+
+  renderRecentFormHtml(match, matchRecentForm) {
+    const renderTeamBlock = (teamId, teamName) => {
+      const records = matchRecentForm
+        .filter(r => r.equipoId === teamId)
+        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+        .slice(0, 5);
+
+      if (records.length === 0) {
+        return `
+          <div class="form-team-card">
+            <div class="form-team-header">
+              <span class="form-team-name">${this.escapeHtml(teamName)}</span>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-dim); margin: 0;">Sin antecedentes recientes registrados en Google Sheets.</p>
+          </div>
+        `;
+      }
+
+      const wins = records.filter(r => ['V', 'W'].includes(r.resultado.toUpperCase())).length;
+      const draws = records.filter(r => ['E', 'D_EMPATE'].includes(r.resultado.toUpperCase())).length;
+      const losses = records.filter(r => ['D', 'L'].includes(r.resultado.toUpperCase())).length;
+      const gf = records.reduce((sum, r) => sum + (r.golesFavor || 0), 0);
+      const gc = records.reduce((sum, r) => sum + (r.golesContra || 0), 0);
+      const dg = gf - gc;
+
+      return `
+        <div class="form-team-card">
+          <div class="form-team-header">
+            <span class="form-team-name">${this.escapeHtml(teamName)}</span>
+            <div class="form-streak-badges">
+              ${records.map(r => `<span class="form-res ${r.resultado.toLowerCase()}">${r.resultado}</span>`).join('')}
+            </div>
+          </div>
+
+          <div class="form-summary-stats">
+            <div class="form-summary-col">
+              <span class="form-summary-label">V</span>
+              <span class="form-summary-val" style="color: #10B981;">${wins}</span>
+            </div>
+            <div class="form-summary-col">
+              <span class="form-summary-label">E</span>
+              <span class="form-summary-val" style="color: #F59E0B;">${draws}</span>
+            </div>
+            <div class="form-summary-col">
+              <span class="form-summary-label">D</span>
+              <span class="form-summary-val" style="color: #EF4444;">${losses}</span>
+            </div>
+            <div class="form-summary-col">
+              <span class="form-summary-label">GF</span>
+              <span class="form-summary-val">${gf}</span>
+            </div>
+            <div class="form-summary-col">
+              <span class="form-summary-label">GC</span>
+              <span class="form-summary-val">${gc}</span>
+            </div>
+            <div class="form-summary-col">
+              <span class="form-summary-label">DG</span>
+              <span class="form-summary-val">${dg >= 0 ? `+${dg}` : dg}</span>
+            </div>
+          </div>
+
+          <div class="form-list">
+            ${records.map(r => `
+              <div class="form-match-mini-card">
+                <div class="form-match-info">
+                  <span class="form-match-rival">vs ${this.escapeHtml(r.rivalId)}</span>
+                  <span class="form-match-meta tabular-nums">${this.escapeHtml(r.fecha)} · ${r.condicion === 'LOCAL' ? 'Local' : 'Visitante'}</span>
+                </div>
+                <strong class="tabular-nums" style="font-size: 13px;">${r.golesFavor !== null ? `${r.golesFavor} - ${r.golesContra}` : 'N/D'}</strong>
+                <span class="form-res ${r.resultado.toLowerCase()}">${this.escapeHtml(r.resultado)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    return `
+      <div class="dialog-panel">
+        <div class="form-teams-grid">
+          ${renderTeamBlock(match.localId, match.homeTeam)}
+          ${renderTeamBlock(match.visitanteId, match.awayTeam)}
+        </div>
+        <div class="dialog-note">
+          <strong>Rendimiento reciente:</strong> Calculado estrictamente con los últimos 5 encuentros anteriores al partido analizado.
+        </div>
+      </div>
+    `;
+  },
+
+  renderH2HHtml(match, matchH2H) {
+    if (matchH2H.length === 0) {
+      return `
+        <div class="dialog-empty-panel">
+          <span class="dialog-empty-icon">⚔️</span>
+          <strong>Sin enfrentamientos directos registrados</strong>
+          <p>La pestaña <code>Enfrentamientos H2H</code> de Google Sheets no tiene antecedentes para estos dos clubes.</p>
+        </div>
+      `;
+    }
+
+    const sorted = [...matchH2H].sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+    let winsA = 0;
+    let draws = 0;
+    let winsB = 0;
+
+    sorted.forEach(r => {
+      if (r.golesLocal === null || r.golesVisitante === null) return;
+      if (r.golesLocal === r.golesVisitante) {
+        draws++;
+      } else if (r.golesLocal > r.golesVisitante) {
+        if (r.localId === match.localId) winsA++;
+        else winsB++;
+      } else {
+        if (r.visitanteId === match.localId) winsA++;
+        else winsB++;
+      }
+    });
+
+    const total = sorted.length;
+    const pctA = total > 0 ? Number(((winsA / total) * 100).toFixed(1)) : 33.3;
+    const pctDraw = total > 0 ? Number(((draws / total) * 100).toFixed(1)) : 33.3;
+    const pctB = total > 0 ? Number((100 - pctA - pctDraw).toFixed(1)) : 33.3;
+
+    return `
+      <div class="dialog-panel">
+        <div class="h2h-summary-card">
+          <div class="h2h-summary-grid">
+            <div>
+              <div class="h2h-summary-num" style="color: var(--accent);">${winsA}</div>
+              <div class="h2h-summary-label">${this.escapeHtml(match.homeTeam)}</div>
+            </div>
+            <div>
+              <div class="h2h-summary-num" style="color: #94A3B8;">${draws}</div>
+              <div class="h2h-summary-label">Empates</div>
+            </div>
+            <div>
+              <div class="h2h-summary-num" style="color: #38BDF8;">${winsB}</div>
+              <div class="h2h-summary-label">${this.escapeHtml(match.awayTeam)}</div>
+            </div>
+          </div>
+
+          <div class="h2h-bar-3part">
+            <div class="h2h-bar-part-a" style="width: ${pctA}%" title="${winsA} victorias"></div>
+            <div class="h2h-bar-part-draw" style="width: ${pctDraw}%" title="${draws} empates"></div>
+            <div class="h2h-bar-part-b" style="width: ${pctB}%" title="${winsB} victorias"></div>
+          </div>
+        </div>
+
+        <div class="h2h-table">
+          ${sorted.map(r => `
+            <div class="h2h-row">
+              <span class="h2h-date tabular-nums">${this.escapeHtml(r.fecha || '')}</span>
+              <span class="h2h-teams">${this.escapeHtml(r.localId)} vs ${this.escapeHtml(r.visitanteId)}</span>
+              <strong class="h2h-score tabular-nums">${r.golesLocal !== null ? `${r.golesLocal} - ${r.golesVisitante}` : 'N/D'}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
+  renderStandingsHtml(match, compStandings) {
+    if (compStandings.length === 0) {
+      return `
+        <div class="dialog-empty-panel">
+          <span class="dialog-empty-icon">🏆</span>
+          <strong>Tabla de posiciones no disponible</strong>
+          <p>La pestaña <code>Clasificaciones</code> de Google Sheets aún no contiene la tabla de posiciones oficial para esta competición.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="dialog-panel">
+        <div class="table-responsive">
+          <table class="standings-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Equipo</th>
+                <th>PJ</th>
+                <th>PG</th>
+                <th>PE</th>
+                <th>PP</th>
+                <th>GF</th>
+                <th>GC</th>
+                <th>DG</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${compStandings.map(s => {
+                const isHomeTeam = s.equipoId === match.localId;
+                const isAwayTeam = s.equipoId === match.visitanteId;
+                return `
+                  <tr class="${isHomeTeam || isAwayTeam ? 'highlight-team' : ''}">
+                    <td class="tabular-nums">${s.posicion || '—'}</td>
+                    <td class="team-col"><strong>${this.escapeHtml(s.equipoId)}</strong></td>
+                    <td class="tabular-nums">${s.pj}</td>
+                    <td class="tabular-nums">${s.pg}</td>
+                    <td class="tabular-nums">${s.pe}</td>
+                    <td class="tabular-nums">${s.pp}</td>
+                    <td class="tabular-nums">${s.gf}</td>
+                    <td class="tabular-nums">${s.gc}</td>
+                    <td class="tabular-nums">${s.dg >= 0 ? `+${s.dg}` : s.dg}</td>
+                    <td class="tabular-nums pts-col"><strong>${s.puntos}</strong></td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="dialog-note">
+          <strong>Clasificación oficial:</strong> Registros sincronizados desde la pestaña <code>Clasificaciones</code> de Google Sheets.
+        </div>
+      </div>
+    `;
+  },
+
   renderModalContent(match) {
     const content = this.$('dialogContent');
     if (!content) return;
@@ -2008,68 +2915,7 @@ const UI = {
 
     let tabBodyHtml = '';
 
-    // ========================================================================
-    // PESTAÑA 1: RESUMEN
-    // ========================================================================
     if (State.activeModalTab === 'resumen') {
-      let goalsHtml = '';
-      if (matchGoals.length > 0) {
-        goalsHtml = `
-          <div class="dialog-subgroup">
-            <div class="subgroup-title"><span>GOLEADORES OFICIALES</span></div>
-            <div class="goals-grid">
-              ${matchGoals.map(g => `
-                <div class="goal-item">
-                  <span class="goal-min tabular-nums">${g.minuto}'${g.adicional ? `+${g.adicional}` : ''}</span>
-                  <span class="goal-ball">⚽</span>
-                  <div class="goal-text">
-                    <strong>${this.escapeHtml(g.jugadorNombre)}</strong>
-                    <small>${this.escapeHtml(g.equipoId)} ${g.tipoGol !== 'NORMAL' ? `· ${g.tipoGol}` : ''} ${g.asistenciaJugador ? `· Asistencia: ${this.escapeHtml(g.asistenciaJugador)}` : ''}</small>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      } else if (match.status === 'finished') {
-        goalsHtml = `
-          <div class="dialog-subgroup">
-            <div class="subgroup-title"><span>GOLEADORES OFICIALES</span></div>
-            <div class="empty-subpanel">
-              <span>${match.hasScore && match.homeGoals === 0 && match.awayGoals === 0 ? 'Empate sin goles (0 - 0).' : 'Detalle de goleadores no disponible en la pestaña Goles.'}</span>
-            </div>
-          </div>
-        `;
-      }
-
-      let eventsHtml = '';
-      if (matchEvents.length > 0) {
-        eventsHtml = `
-          <div class="dialog-subgroup">
-            <div class="subgroup-title"><span>CRONOLOGÍA DEL ENCUENTRO</span></div>
-            <div class="timeline-list">
-              ${matchEvents.map(e => {
-                let icon = '⏱';
-                if (e.tipoEvento.includes('gol')) icon = '⚽';
-                else if (e.tipoEvento.includes('amarilla')) icon = '🟨';
-                else if (e.tipoEvento.includes('roja')) icon = '🟥';
-                else if (e.tipoEvento.includes('sustitucion') || e.tipoEvento.includes('cambio')) icon = '🔄';
-                return `
-                  <div class="timeline-row">
-                    <span class="timeline-min tabular-nums">${e.minuto}'</span>
-                    <span class="timeline-icon">${icon}</span>
-                    <div class="timeline-body">
-                      <strong>${this.escapeHtml(e.jugadorNombre || e.tipoEvento.toUpperCase())}</strong>
-                      <p>${this.escapeHtml(e.descripcion || '')}</p>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      }
-
       tabBodyHtml = `
         <div class="dialog-panel">
           <div class="dialog-info-grid">
@@ -2079,7 +2925,7 @@ const UI = {
             </div>
             <div class="info-cell">
               <span class="cell-label">Estadio</span>
-              <strong>${this.escapeHtml(match.venue)}</strong>
+              <strong>${this.escapeHtml(match.venue || 'Estadio oficial')}</strong>
             </div>
             <div class="info-cell">
               <span class="cell-label">Fecha y Hora (Perú)</span>
@@ -2117,215 +2963,30 @@ const UI = {
             </div>
           ` : ''}
 
-          ${goalsHtml}
-          ${eventsHtml}
+          ${this.renderBilateralScorersHtml(match, matchGoals)}
+          ${this.renderBilateralTimelineHtml(match, matchEvents)}
 
           <div class="dialog-note">
-            <strong>Fuente verificada:</strong> Registros sincronizados desde las pestañas <code>Partidos</code>, <code>Goles</code> y <code>Detalle final</code> de Google Sheets. Cero datos ficticios.
+            <strong>Fuente verificada:</strong> Registros sincronizados desde las pestañas <code>Partidos</code>, <code>Goles</code>, <code>Eventos del partido</code> y <code>Detalle final</code>. Cero datos ficticios.
           </div>
         </div>
       `;
-    }
-
-    // ========================================================================
-    // PESTAÑA 2: ESTADÍSTICAS PROFESIONALES
-    // ========================================================================
-    else if (State.activeModalTab === 'estadisticas') {
-      if (matchStats.length === 0) {
-        tabBodyHtml = `
-          <div class="dialog-empty-panel">
-            <span class="dialog-empty-icon">📈</span>
-            <strong>Estadísticas no disponibles</strong>
-            <p>La pestaña <code>Estadisticas</code> de Google Sheets no contiene métricas numéricas registradas para este partido.</p>
-          </div>
-        `;
-      } else {
-        tabBodyHtml = `
-          <div class="dialog-panel">
-            <div class="stats-table">
-              ${matchStats.map(s => `
-                <div class="stat-row">
-                  <span class="stat-name">${this.escapeHtml(s.metrica)}</span>
-                  <span class="stat-team-id">${this.escapeHtml(s.equipoId)}</span>
-                  <strong class="stat-val tabular-nums">${this.escapeHtml(s.valor)} ${this.escapeHtml(s.unidad)}</strong>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // ========================================================================
-    // PESTAÑA 3: ALINEACIONES Y FORMACIONES
-    // ========================================================================
-    else if (State.activeModalTab === 'alineaciones') {
-      if (matchLineups.length === 0) {
-        tabBodyHtml = `
-          <div class="dialog-empty-panel">
-            <span class="dialog-empty-icon">📋</span>
-            <strong>Alineaciones no disponibles</strong>
-            <p>Las alineaciones oficiales se confirmarán en la pestaña <code>Alineaciones</code> de Google Sheets previo al inicio del encuentro.</p>
-          </div>
-        `;
-      } else {
-        const homeLineups = matchLineups.filter(l => l.equipoId === match.localId);
-        const awayLineups = matchLineups.filter(l => l.equipoId === match.visitanteId);
-
-        tabBodyHtml = `
-          <div class="dialog-panel">
-            <div class="lineups-split">
-              <div class="lineup-side">
-                <h4>${this.escapeHtml(match.homeTeam)}</h4>
-                <div class="lineup-list">
-                  ${homeLineups.map(p => `
-                    <div class="player-row ${p.titular ? 'starter' : 'sub'}">
-                      <span class="player-num tabular-nums">${p.numero || '—'}</span>
-                      <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
-                      <small class="player-pos">${this.escapeHtml(p.posicion || (p.titular ? 'Titular' : 'Suplente'))}</small>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-              <div class="lineup-side">
-                <h4>${this.escapeHtml(match.awayTeam)}</h4>
-                <div class="lineup-list">
-                  ${awayLineups.map(p => `
-                    <div class="player-row ${p.titular ? 'starter' : 'sub'}">
-                      <span class="player-num tabular-nums">${p.numero || '—'}</span>
-                      <span class="player-name">${this.escapeHtml(p.jugadorNombre)}</span>
-                      <small class="player-pos">${this.escapeHtml(p.posicion || (p.titular ? 'Titular' : 'Suplente'))}</small>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // ========================================================================
-    // PESTAÑA 4: FORMA RECIENTE (ÚLTIMOS 5 PARTIDOS)
-    // ========================================================================
-    else if (State.activeModalTab === 'forma') {
-      if (matchRecentForm.length === 0) {
-        tabBodyHtml = `
-          <div class="dialog-empty-panel">
-            <span class="dialog-empty-icon">📊</span>
-            <strong>Sin antecedentes recientes registrados</strong>
-            <p>La pestaña <code>Ultimos 5 partidos</code> de Google Sheets aún no contiene registros para los equipos de este encuentro.</p>
-          </div>
-        `;
-      } else {
-        tabBodyHtml = `
-          <div class="dialog-panel">
-            <div class="form-list">
-              ${matchRecentForm.map(r => `
-                <div class="form-row">
-                  <span class="form-res ${r.resultado.toLowerCase()}">${this.escapeHtml(r.resultado)}</span>
-                  <span class="form-date tabular-nums">${this.escapeHtml(r.fecha || '')}</span>
-                  <span class="form-match">${this.escapeHtml(r.equipoId)} vs ${this.escapeHtml(r.rivalId)}</span>
-                  <strong class="form-score tabular-nums">${r.golesFavor !== null ? `${r.golesFavor}-${r.golesContra}` : 'N/D'}</strong>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // ========================================================================
-    // PESTAÑA 5: ENFRENTAMIENTOS DIRECTOS (H2H)
-    // ========================================================================
-    else if (State.activeModalTab === 'h2h') {
-      if (matchH2H.length === 0) {
-        tabBodyHtml = `
-          <div class="dialog-empty-panel">
-            <span class="dialog-empty-icon">⚔️</span>
-            <strong>Sin enfrentamientos directos registrados</strong>
-            <p>La pestaña <code>Enfrentamientos H2H</code> de Google Sheets no tiene filas vinculadas a este encuentro.</p>
-          </div>
-        `;
-      } else {
-        tabBodyHtml = `
-          <div class="dialog-panel">
-            <div class="h2h-table">
-              ${matchH2H.map(r => `
-                <div class="h2h-row">
-                  <span class="h2h-date tabular-nums">${this.escapeHtml(r.fecha || '')}</span>
-                  <span class="h2h-teams">${this.escapeHtml(r.localId)} vs ${this.escapeHtml(r.visitanteId)}</span>
-                  <strong class="h2h-score tabular-nums">${r.golesLocal !== null ? `${r.golesLocal}-${r.golesVisitante}` : 'N/D'}</strong>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // ========================================================================
-    // PESTAÑA 6: CLASIFICACIÓN OFICIAL
-    // ========================================================================
-    else if (State.activeModalTab === 'clasificacion') {
-      if (compStandings.length === 0) {
-        tabBodyHtml = `
-          <div class="dialog-empty-panel">
-            <span class="dialog-empty-icon">🏆</span>
-            <strong>Tabla de posiciones no disponible</strong>
-            <p>La pestaña <code>Clasificaciones</code> de Google Sheets aún no contiene la tabla de posiciones para ${this.escapeHtml(comp.name)}.</p>
-          </div>
-        `;
-      } else {
-        tabBodyHtml = `
-          <div class="dialog-panel">
-            <div class="table-responsive">
-              <table class="standings-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Equipo</th>
-                    <th>PJ</th>
-                    <th>PG</th>
-                    <th>PE</th>
-                    <th>PP</th>
-                    <th>GF</th>
-                    <th>GC</th>
-                    <th>DG</th>
-                    <th>Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${compStandings.map(s => {
-                    const isHomeTeam = s.equipoId === match.localId;
-                    const isAwayTeam = s.equipoId === match.visitanteId;
-                    return `
-                      <tr class="${isHomeTeam || isAwayTeam ? 'highlight-team' : ''}">
-                        <td class="tabular-nums">${s.posicion || '—'}</td>
-                        <td class="team-col"><strong>${this.escapeHtml(s.equipoId)}</strong></td>
-                        <td class="tabular-nums">${s.pj}</td>
-                        <td class="tabular-nums">${s.pg}</td>
-                        <td class="tabular-nums">${s.pe}</td>
-                        <td class="tabular-nums">${s.pp}</td>
-                        <td class="tabular-nums">${s.gf}</td>
-                        <td class="tabular-nums">${s.gc}</td>
-                        <td class="tabular-nums">${s.dg >= 0 ? `+${s.dg}` : s.dg}</td>
-                        <td class="tabular-nums pts-col"><strong>${s.puntos}</strong></td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        `;
-      }
+    } else if (State.activeModalTab === 'estadisticas') {
+      tabBodyHtml = this.renderComparativeStatsHtml(match, matchStats);
+    } else if (State.activeModalTab === 'alineaciones') {
+      tabBodyHtml = this.renderTacticalPitchHtml(match, matchLineups, matchGoals, matchEvents);
+    } else if (State.activeModalTab === 'forma') {
+      tabBodyHtml = this.renderRecentFormHtml(match, matchRecentForm);
+    } else if (State.activeModalTab === 'h2h') {
+      tabBodyHtml = this.renderH2HHtml(match, matchH2H);
+    } else if (State.activeModalTab === 'clasificacion') {
+      tabBodyHtml = this.renderStandingsHtml(match, compStandings);
     }
 
     content.innerHTML = `
       <div class="dialog-top">
         <div class="dialog-toolbar">
-          <span class="dialog-kicker" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name.toUpperCase())}</span>
+          <span class="dialog-kicker" style="color: ${comp.accentColor}">${this.escapeHtml(comp.name.toUpperCase())} ${match.jornada ? `· JORNADA ${match.jornada}` : ''}</span>
           <button class="dialog-close" id="dialogCloseBtn" aria-label="Cerrar ventana">✕</button>
         </div>
         <div class="dialog-teams">
@@ -2346,6 +3007,12 @@ const UI = {
             </span>
             <strong>${this.escapeHtml(match.awayTeam)}</strong>
           </div>
+        </div>
+
+        <div class="dialog-meta-strip">
+          <span>📍 <strong class="dialog-venue-text">${this.escapeHtml(match.venue || 'Estadio oficial')}</strong></span>
+          ${matchDetail?.arbitro ? `<span>⚖️ <strong>${this.escapeHtml(matchDetail.arbitro)}</strong></span>` : ''}
+          <span>📅 <strong class="tabular-nums">${this.escapeHtml(match.date)} · Hora Perú</strong></span>
         </div>
 
         <nav class="dialog-tabs" role="tablist">
@@ -2380,6 +3047,30 @@ const UI = {
   // --------------------------------------------------------------------------
   bindEvents() {
     document.addEventListener('click', e => {
+      // Clic en selector de período: Esta semana | Próxima semana | Ver 14 días
+      const periodBtn = e.target.closest('[data-period]');
+      if (periodBtn) {
+        const mode = periodBtn.dataset.period;
+        State.periodMode = mode;
+        if (mode === 'current') {
+          State.currentWeekStart = CalendarService.getCurrentMonday();
+        } else if (mode === 'next') {
+          State.currentWeekStart = CalendarService.getNextMonday();
+        }
+        State.selectedDay = 'all';
+        this.render();
+        return;
+      }
+
+      // Clic en toggle de vista de alineaciones (Cancha táctica vs Lista)
+      const lineupViewBtn = e.target.closest('[data-lineup-view]');
+      if (lineupViewBtn) {
+        State.lineupViewMode = lineupViewBtn.dataset.lineupView;
+        const match = FIXTURES.find(f => String(f.id) === String(State.activeModalMatchId));
+        if (match) this.renderModalContent(match);
+        return;
+      }
+
       // Clic en liga desde el sidebar
       const leagueItem = e.target.closest('[data-league]');
       if (leagueItem) {
@@ -2443,22 +3134,30 @@ const UI = {
         return;
       }
 
-      // Clic en detalle de partido
-      const detailBtn = e.target.closest('[data-detail]');
-      if (detailBtn) {
-        const matchId = detailBtn.dataset.detail;
-        this.openMatchDetails(matchId);
-        return;
-      }
-
-      // Clic en botón de favorito
+      // Clic en botón de favorito (e.stopPropagation() evita que abra el modal)
       const favBtn = e.target.closest('[data-fav]');
       if (favBtn) {
+        e.stopPropagation();
         const matchId = favBtn.dataset.fav;
         const isAdded = FavoritesService.toggle(matchId);
         State.favorites = FavoritesService.getFavoriteIds();
         this.render();
         this.showToast(isAdded ? 'Añadido a favoritos' : 'Eliminado de favoritos');
+        return;
+      }
+
+      // Clic en detalle de partido o en toda la tarjeta del encuentro
+      const card = e.target.closest('.match-card[data-match-id]');
+      if (card) {
+        const matchId = card.dataset.matchId;
+        this.openMatchDetails(matchId);
+        return;
+      }
+
+      const detailBtn = e.target.closest('[data-detail]');
+      if (detailBtn) {
+        const matchId = detailBtn.dataset.detail;
+        this.openMatchDetails(matchId);
         return;
       }
     });
@@ -2534,6 +3233,13 @@ const UI = {
           dialog.close();
         } else {
           this.closeMobileMenu();
+        }
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && document.activeElement?.classList?.contains('match-card')) {
+        const matchId = document.activeElement.dataset.matchId;
+        if (matchId) {
+          e.preventDefault();
+          this.openMatchDetails(matchId);
         }
       }
     });

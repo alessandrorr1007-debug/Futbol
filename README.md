@@ -1,215 +1,111 @@
-# Matchweek — Premium Football Intelligence
+# Matchweek 2.0 — Premium Football Intelligence
 
-Plataforma de inteligencia deportiva para consultar partidos semanales, competiciones, resultados y estadísticas oficiales con dirección de arte premium y experiencia de usuario de nivel comercial.
+Plataforma de inteligencia deportiva para consultar partidos, calendarios de dos semanas (14 días), análisis tácticos con cancha reglamentaria, estadísticas comparativas estilo Sofascore, cronología minuto a minuto bilateral y clasificaciones oficiales, sincronizada en tiempo real con 14 pestañas de Google Sheets.
 
-## 🚀 Inicio Rápido
+---
 
-Abre `index.html` en cualquier navegador web moderno. Para servirla localmente:
+## 🚀 Inicio Rápido y Despliegue
+
+La web está optimizada para ejecutarse en cualquier navegador moderno y desplegarse directamente en GitHub Pages.
 
 ```bash
-# Servir con Python en puerto 8080
+# Servir localmente en puerto 8080
 python -m http.server 8080
 ```
-Luego abre [http://localhost:8080](http://localhost:8080) en tu navegador.
+Abrir: [http://localhost:8080](http://localhost:8080)
+
+* **Web Publicada en GitHub Pages:** [https://alessandrorr1007-debug.github.io/Futbol/](https://alessandrorr1007-debug.github.io/Futbol/)
+* **Google Sheets Oficial (Matchweek_Datos):** [https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit](https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit)
 
 ---
 
-## 🎨 Identidad Visual y Sistema de Diseño
+## ⚡ Novedades Principales en Matchweek 2.0
 
-La interfaz combina los principios de **Sports Media + Data Intelligence + Modern SaaS Dashboard** con una paleta de alta precisión:
+### 1. Ventana de 14 Días (Dos Semanas de Partidos)
+* **Semana actual (Lunes a Domingo):** Encuentros finalizados, en vivo y programados.
+* **Semana siguiente (Lunes a Domingo):** Próximos encuentros de ambas semanas.
+* **Cálculo dinámico en horario de Perú (`America/Lima`, UTC-5):** Sin fechas fijas ni desfases por cálculos en UTC.
+* **Selector superior de período:**
+  * `⚡ Esta semana` (7 días de lunes a domingo)
+  * `📅 Próxima semana` (7 días de lunes a domingo)
+  * `♾ Ver 14 días` (14 días cronológicos completos)
+* **Tira de fechas reactiva:** Píldora `TODOS` dinámica y resaltado sutil del día actual (`is-today`).
+* **Subagrupación por día y competición:** Cada día agrupa sus encuentros por torneo (`.comp-group-block`) con bandera, nombre y contador, ordenados cronológicamente.
 
-* **Fondo principal:** `#080D12`
-* **Superficies:** `#101922`
-* **Superficies elevadas:** `#17232D`
-* **Bordes:** `#26333D`
-* **Acento principal:** `#C6FF4D` (Lime tech / electric pitch)
-* **Texto principal:** `#F5F7FA`
-* **Texto secundario:** `#94A3B8`
-* **Tipografía:** *Outfit* (títulos, encabezados, números) + *DM Sans* (interfaz y lectura)
-* **Números tabulares:** Implementación de `font-variant-numeric: tabular-nums` para marcadores, fechas y cronómetros.
+### 2. Tarjetas de Partido Profesionales e Interactivas
+* Toda la tarjeta es clickeable (`cursor: pointer`, accesible mediante teclado con `Enter` o `Espacio`) para abrir la ficha técnica.
+* Botón de favoritos accesible con `e.stopPropagation()`.
+* Diferenciación de 7 estados oficiales: `PROGRAMADO`, `EN VIVO`, `DESCANSO`, `FINALIZADO`, `APLAZADO`, `SUSPENDIDO`, `CANCELADO`.
+* Previsualización de goleadores en la tarjeta con iconos ⚽, minutos y penaltis.
 
----
-
-## 🏆 Organización de Competiciones (11)
-
-La navegación lateral y el directorio central se organizan en los siguientes grupos oficiales:
-
-### 1. PRINCIPAL
-- **Inicio**
-- **Todos los partidos**
-- **Favoritos**
-
-### 2. GRANDES LIGAS
-- **Premier League** — Inglaterra
-- **LaLiga** — España
-- **Serie A** — Italia
-- **Bundesliga** — Alemania
-- **Ligue 1** — Francia
-
-### 3. COMPETICIONES EUROPEAS
-- **UEFA Champions League**
-- **UEFA Europa League**
-- **UEFA Conference League**
-
-### 4. SUDAMÉRICA
-- **Copa Libertadores**
-- **Copa Sudamericana**
-
-### 5. PERÚ
-- **Liga 1** — Perú
-
-Cada competición cuenta con:
-- Emblema vectorial SVG independiente y color característico.
-- Filtro funcional para visualizar únicamente sus partidos.
-- Banner de cabecera con país, confederación, año de fundación y temporada.
-- Estado vacío contextual profesional.
+### 3. Rediseño Integral del Modal de Análisis (6 Pestañas)
+* **Encabezado Persistente:** Competición, jornada, local y visitante con escudos en alta resolución, marcador central, estado y cinta de metadatos (`.dialog-meta-strip`: estadio, árbitro, fecha en horario peruano).
+* **Pestaña 1 — Resumen:**
+  * Goleadores bilaterales: columna local y visitante con minuto, jugador, asistencia y tipo de gol.
+  * Línea de tiempo (timeline) bilateral: eje central con medallas de minutos y eventos deportivos a cada lado (⚽ Gol, 🟨 Amarilla, 🟥 Roja, 🔄 Sustitución, 🎯 Penalti, 📺 VAR).
+  * Tarjeta de detalle final: marcador al descanso, asistencia oficial de público y resumen verificado.
+* **Pestaña 2 — Estadísticas Comparativas (Sofascore Style):**
+  * Visualización horizontal con barras proporcionales y acento de equipo dominante.
+  * 4 categorías estructuradas: *Control de juego* (Posesión, Pases, Precisión), *Ataque* (Remates, Tiros a puerta, xG), *Disciplina* (Faltas, Amarillas, Rojas) y *Otras* (Córners, Fueras de juego, Paradas).
+  * Exclusión estricta de métricas históricas `h2h_*` para evitar confusión con el encuentro analizado.
+* **Pestaña 3 — Alineaciones y Cancha Táctica ⚽:**
+  * Cancha reglamentaria SVG con césped degradado, líneas oficiales y áreas reglamentarias.
+  * Distribución táctica de jugadores según la formación de cada club (4-3-3, 4-4-2, 4-2-3-1, 3-5-2, etc.).
+  * Nodos de jugadores con dorsal, nombre corto e iconos de incidencias (goles, tarjetas, sustitución).
+  * Selector toggle para alternar entre **Cancha Táctica ⚽** y **Vista Lista 📋**.
+  * Roster completo con titulares, suplentes y directores técnicos.
+* **Pestaña 4 — Forma Reciente:**
+  * Bloques separados para local y visitante con los últimos 5 partidos (del más reciente al más antiguo).
+  * Secuencia visual de resultados con insignias (V verde, E ámbar, D rojo).
+  * Resumen estadístico calculado matemáticamente (V, E, D, GF, GC, DG).
+* **Pestaña 5 — Historial H2H:**
+  * Barra comparativa tricolor: Victorias Local (acento verde) | Empates (neutro) | Victorias Visitante (celeste).
+  * Contadores de victorias y empates.
+  * Tarjetas compactas de enfrentamientos directos previos.
+* **Pestaña 6 — Clasificación Oficial:**
+  * Tabla completa (`#`, Escudo, Equipo, PJ, PG, PE, PP, GF, GC, DG, Pts).
+  * Resaltado sutil (`.highlight-team`) de los dos equipos participantes del encuentro.
+  * Contenedor responsive con scroll horizontal en móvil.
 
 ---
 
-## 🛡️ Estado de los Datos (Cero Datos Simulados)
+## 📊 Integración con las 14 Pestañas de Google Sheets
 
-- **Sin partidos ficticios:** Se han eliminado por completo los encuentros de demostración (Chelsea vs. Man Utd, Liverpool vs. Arsenal, etc.).
-- **Contadores fidedignos:** Los contadores deportivos muestran `0` hasta la integración de la API. El contador de competiciones muestra `11` (estructura activa de la plataforma).
-- **Estados vacíos elegantes:** Cada sección muestra mensajes orientativos profesionales indicando que los encuentros aparecerán cuando se habilite la actualización de datos oficiales.
+La plataforma lee y sincroniza en paralelo las 14 pestañas oficiales de Google Sheets mediante la API pública de Google Visualization (GViz JSON):
 
----
-
-## ✨ Componentes y Funcionalidades
-
-- **Hero Editorial:** Composición abstracta inspirada en un campo táctico y líneas de juego (*"El fútbol no se detiene."*).
-- **Calendario Semanal:** Cálculo dinámico de semanas de lunes a domingo, navegación histórica, botón *"Hoy"*, diferenciación de fin de semana y selección interactiva.
-- **Buscador en Tiempo Real:** Búsqueda rápida por competición o equipo con atajo de teclado `/` y botón de limpieza instantánea.
-- **Favoritos:** Almacenamiento persistente en el navegador con `localStorage`.
-- **Ficha Técnica y Análisis:** Modal accesible (`<dialog>`) preparado para estadísticas, antecedentes H2H y resúmenes tácticos con IA.
-- **Diseño Responsive:** Adaptabilidad completa validada en resoluciones móviles (360px, 390px), tablets (768px, 1024px) y escritorio (1440px, 1920px).
-- **Compatibilidad con GitHub Pages:** Rutas relativas seguras sin dependencias externas pesadas.
-
----
-
-## 🔮 Preparación para Futuras Integraciones
-
-El código en `app.js` cuenta con servicios modulares preparados para:
-1. **Actualización automática cada lunes a las 04:00 UTC** (`MatchweekConfig.schedule`).
-2. **Obtención de resultados reales** (`RealScoresService`).
-3. **Estadísticas de rendimiento y xG** (`PerformanceStatsService`).
-4. **Últimos cinco partidos de cada equipo** (`TeamFormService`).
-5. **Historial de enfrentamientos directos H2H** (`HeadToHeadService`).
-6. **Clasificaciones oficiales de liga** (`StandingsService`).
-7. **Análisis predictivo con Inteligencia Artificial** (`AiIntelligenceService`).
+1. `Competiciones` (11 torneos oficiales)
+2. `Equipos` (Directorio y escudos de clubes)
+3. `Partidos` (Agenda de encuentros, fechas y horarios de Perú)
+4. `Ultimos 5 partidos` (Rachas y antecedentes recientes)
+5. `Enfrentamientos H2H` (Historial directo entre rivales)
+6. `Estadisticas` (Métricas numéricas de juego)
+7. `Control de actualizaciones` (Logs de actualización)
+8. `Goles` (Anotadores, minutos y asistencias)
+9. `Eventos del partido` (Tarjetas, sustituciones, goles minuto a minuto)
+10. `Alineaciones` (Titulares, suplentes, dorsales, formaciones y entrenadores)
+11. `Clasificaciones` (Tablas de posiciones oficiales)
+12. `Cobertura diaria` (Verificación de fechas con y sin partidos)
+13. `Detalle final` (Marcadores al descanso, árbitros y asistencias de público)
+14. `Auditoria semanal` (Verificación integral de consistencia semanal)
 
 ---
 
-## 📊 Fase 3A: Integración con Google Sheets (Matchweek_Datos)
+## 🧪 Pruebas Automatizadas y Validación en Navegador Real
 
-Matchweek cuenta con una integración profesional, reactiva y segura con el archivo oficial de Google Sheets:
-* **Archivo oficial:** [Matchweek_Datos](https://docs.google.com/spreadsheets/d/1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw/edit)
-* **Spreadsheet ID:** `1txMziS4K5lBqM9k2erksVN0KcfOZa1fTcz0-SReYROw`
+La aplicación fue evaluada y validada en **Google Chrome real** mediante DevTools Protocol (CDP):
 
-### Las 7 Pestañas Sincronizadas
-1. **Competiciones:** `competicion_id`, `nombre`, `region`, `pais_confederacion`, `temporada`, `activo`.
-2. **Equipos:** `equipo_id`, `nombre_oficial`, `nombre_corto`, `pais`, `escudo_url`, `fuente_url`, `verificado_en`.
-3. **Partidos:** `partido_id`, `competicion_id`, `temporada`, `fecha_hora_utc`, `fecha_hora_peru`, `local_id`, `visitante_id`, `estadio`, `estado`, `goles_local`, `goles_visitante`, `fuente_url`, `verificado_en`.
-4. **Ultimos 5 partidos:** `partido_id_objetivo`, `equipo_id`, `resultado`, `rival_id`, `goles_a_favor`, `goles_en_contra`, `fecha`.
-5. **Enfrentamientos H2H:** `partido_id_objetivo`, `partido_historico_id`, `local_id`, `visitante_id`, `goles_local`, `goles_visitante`, `fecha`.
-6. **Estadisticas:** `partido_id`, `equipo_id`, `metrica`, `valor`, `unidad`, `periodo`, `fuente_url`, `verificado_en`.
-7. **Control de actualizaciones:** `estado`, `inicio_utc`, `fin_utc`, `duracion_segundos`, `filas_insertadas`.
+```bash
+node scratch/test_matchweek_2_real_browser.js
+```
 
----
-
-### 🔄 Botón «Actualizar partidos» y sus 5 Estados Obligatorios
-El botón situado en el encabezado superior (y replicado en el banner de estado táctico) gestiona el ciclo de vida de la consulta:
-1. **Estado inicial:** Disponible para iniciar la consulta («Actualizar partidos»).
-2. **Estado de carga:** Muestra *"Consultando datos deportivos..."*, bloquea solicitudes duplicadas temporalmente e inicia la animación de rotación suave.
-3. **Estado exitoso:** Muestra *"Datos actualizados correctamente."*, indicando la fecha y hora de la consulta en **horario de Perú (`America/Lima`)**.
-4. **Estado sin registros:** Muestra *"No hay partidos registrados para esta semana."* cuando la hoja no incluye encuentros para la semana actual, respetando la política de cero invención de datos.
-5. **Estado de error:** Muestra *"No fue posible consultar los datos. Inténtalo nuevamente."* permitiendo reintentar sin romper la interfaz.
-
----
-
-### 🔒 Arquitectura de Seguridad y Rendimiento
-* **Cero claves privadas en frontend:** No se exponen tokens OAuth ni claves API sensibles en el código del navegador.
-* **Transporte Nativo sin Restricciones CORS:** Implementación de transporte directo mediante Google Visualization API (JSONP) que opera de forma 100% nativa en GitHub Pages sin requerir proxies de terceros.
-* **Servicio Google Apps Script (Opcional):** Código preparado en `google-apps-script/Code.gs` para actuar como backend de solo lectura con caché y cuotas seguras.
-* **Validación y Sanitización:** `DataTransformer` sanitiza HTML y URLs para prevenir ataques XSS, descarta identificadores duplicados y diferencia numéricamente el marcador `0` de la ausencia de datos (`null`).
-* **Caché Local Offline:** Si una consulta falla debido a pérdida de conectividad, se preservan los últimos datos válidos en `localStorage`.
-
----
-
----
-
-## 📊 Fase 3B: Historial Semanal, Resultados Finales y Estadísticas Profesionales
-
-En la Fase 3B, Matchweek se consolida como un historial futbolístico fidedigno y completo, garantizando que todos los partidos registrados (desde el lunes hasta el domingo de la semana seleccionada) se visualicen permanentemente, sin desaparecer al terminar.
-
-### 1. Resolución de Partidos Anteriores y Calendario Semanal
-* **Zona Horaria Estricta:** Toda la lógica de agrupación y cálculo de fechas opera bajo `America/Lima` (UTC-5), evitando que diferencias con la medianoche UTC desplacen encuentros al día siguiente o a la semana anterior.
-* **Píldora «SEMANA TODOS»:** Permite visualizar en una sola vista toda la agenda semanal de lunes a domingo (59 partidos registrados).
-* **Partidos Finalizados Conservados:** Encuentros como *Sevilla vs. Osasuna (2-0)* y *Paris Saint-Germain vs. Olympique Lyon (2-0)* permanecen visibles con su marcador oficial, goleadores y ficha completa.
-* **Navegación Histórica:** Botones `‹` y `›` para navegar entre semanas, botón `Hoy` para regresar a la fecha actual y selector directo para cada día de la semana.
-
----
-
-### 2. Las 13 Pestañas Oficiales Sincronizadas
-La plataforma lee e integra relacionalmente las 13 hojas del libro oficial de Google Sheets mediante `&headers=1`:
-1. **Competiciones:** Metadatos de los 11 torneos oficiales.
-2. **Equipos:** 107 clubes con escudo, nombre oficial, nombre corto y país.
-3. **Partidos:** 59 encuentros con fecha/hora UTC, fecha/hora Perú, estadio, marcador y estado.
-4. **Ultimos 5 partidos:** Forma reciente vinculada por `partido_id_objetivo` y `equipo_id`.
-5. **Enfrentamientos H2H:** Historial directo vinculado por `partido_id_objetivo`.
-6. **Estadisticas:** Métricas por `partido_id` y `equipo_id`.
-7. **Control de actualizaciones:** Registro de ejecuciones del pipeline.
-8. **Goles:** Goleadores, minutos, penaltis y asistencias vinculados por `partido_id`.
-9. **Eventos del partido:** Cronología de goles, tarjetas amarillas/rojas y sustituciones.
-10. **Alineaciones:** Titulares, suplentes y posiciones vinculados por `partido_id`.
-11. **Clasificaciones:** Tabla de posiciones vinculada por `competicion_id` y `temporada`.
-12. **Cobertura diaria:** Registro de días verificados por `fecha_peru` y `competicion_id`.
-13. **Detalle final:** Marcador al descanso, árbitro principal y asistencia confirmada.
-
----
-
-### 3. Los 4 Estados Vacíos Contextuales Obligatorios
-Para garantizar máxima transparencia y evitar afirmar erróneamente que no hubo partidos, la interfaz evalúa contra la pestaña `Cobertura diaria`:
-* **CASO A (Cobertura verificada sin partidos):**
-  *"No hubo partidos programados para este día."*
-* **CASO B (Cobertura todavía no consultada):**
-  *"Todavía no se ha verificado la programación de este día."*
-* **CASO C (Consulta con errores):**
-  *"No se pudo comprobar la programación. Intenta actualizar."*
-* **CASO D (Hay partidos en otras competiciones):**
-  *"No hay partidos de esta competición para el día seleccionado."*
-
----
-
-### 4. Normalización de 7 Estados de Partido
-Normalización bidireccional desde Google Sheets a identificadores canónicos:
-* `PROGRAMADO` (`upcoming`)
-* `EN_VIVO` (`live`)
-* `DESCANSO` (`halftime`)
-* `FINALIZADO` (`finished`)
-* `APLAZADO` (`postponed`)
-* `SUSPENDIDO` (`suspended`)
-* `CANCELADO` (`cancelled`)
-
----
-
-### 5. Ficha Profesional del Encuentro (Modal de 6 Pestañas)
-El modal `#matchDialog` organiza los datos en pestañas interactivas sin gráficos ficticios:
-1. **Resumen:** Marcador, goleadores oficiales con minutos y asistencias, árbitro, marcador al descanso y cronología de eventos.
-2. **Estadísticas:** Métricas numéricas reales desde la pestaña `Estadisticas` (o estado vacío si no hay datos).
-3. **Alineaciones:** Titulares y suplentes divididos por equipo local y visitante.
-4. **Forma reciente:** Últimos 5 partidos oficiales con resultados (V, E, D) y marcadores.
-5. **Historial H2H:** Enfrentamientos directos previos entre ambos clubes.
-6. **Clasificación:** Tabla de posiciones oficial de la competición con resaltado de ambos equipos.
-
----
-
-## 📁 Archivos del Proyecto
-
-- `index.html`: Estructura semántica, accesibilidad, botón `#syncButton`, banner táctico `#syncBanner` y modal `#matchDialog`.
-- `styles.css`: Sistema de diseño, tokens tipográficos, estados de sincronización, animaciones, números tabulares y diseño responsive.
-- `app.js`: Controlador UI v3.2.0, `CalendarService` (America/Lima), `DataTransformer` (13 hojas), `GoogleSheetsSyncService` y gestión modal.
-- `google-apps-script/Code.gs`: Endpoint optimizado con soporte para las 13 pestañas y parámetro `?sheet=`.
-- `google-apps-script/README.md`: Documentación técnica de despliegue para Google Apps Script.
-- `scratch/test_phase3b_complete.js`: Suite automatizada de 51 pruebas de integración y validación.
-
-
+### Resultados de la suite en navegador real:
+* **Conexión CDP:** Establecida exitosamente en puerto 9222.
+* **Sincronización:** 14 pestañas consultadas sin errores (59 partidos, 20 goles, 68 eventos, 172 alineaciones, 88 estadísticas, 41 H2H, 70 registros de forma, 40 clasificaciones, 59 auditorías).
+* **Selector 14 días:** 14 días renderizados, tira de 15 píldoras, 59 partidos visibles.
+* **Agrupación por competición:** 21 bloques subagrupados con banderas y contadores.
+* **Modal de análisis (Sevilla vs Osasuna):** Encabezado persistente, 6 pestañas funcionales.
+* **Estadísticas comparativas:** 4 categorías verificadas, barras proporcionales activas, cero contaminación de promedios H2H.
+* **Cancha táctica:** 22 jugadores posicionados en 4-4-2 y 4-3-3, nodos de dorsal y nombres cortos, toggle a lista verificado.
+* **Forma reciente y H2H:** 20 insignias de racha, barras comparativas 3-partes verificadas.
+* **Clasificación:** Tabla oficial con resaltado de ambos equipos.
+* **Responsive Móvil:** Viewport 390x844 px verificado sin desbordamientos horizontales.
